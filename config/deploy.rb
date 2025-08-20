@@ -14,6 +14,12 @@ def main_deploy_server
   end
 end
 
+
+# ==> START: Configuration for Vendor Tool
+set :vendor_tool_repo, "https://github.com/CoslaDigital/sensemaking-tools.git"
+set :vendor_tool_name, "sensemaking-tools" # The directory name for the tool
+set :vendor_tool_path, -> { shared_path.join("vendor", fetch(:vendor_tool_name)) }
+
 set :rails_env, fetch(:stage)
 set :default_env, { EXECJS_RUNTIME: "Disabled" }
 set :rvm1_map_bins, -> { fetch(:rvm_map_bins).to_a.concat(%w[rake gem bundle ruby]).uniq }
@@ -22,7 +28,7 @@ set :application, deploysecret(:app_name, default: "consul")
 set :deploy_to, deploysecret(:deploy_to)
 set :ssh_options, port: deploysecret(:ssh_port)
 
-set :repo_url, "https://github.com/consuldemocracy/consuldemocracy.git"
+set :repo_url, "https://github.com/CoslaDigital/consuldemocracyAI.git"
 
 set :revision, `git rev-parse --short #{fetch(:branch)}`.strip
 
@@ -33,6 +39,7 @@ set :use_sudo, false
 set :linked_files, %w[config/database.yml config/secrets.yml]
 set :linked_dirs, %w[.bundle log tmp public/system public/assets
                      public/ckeditor_assets public/machine_learning/data storage]
+append :linked_dirs, "vendor/#{fetch(:vendor_tool_name)}"
 
 set :keep_releases, 5
 
@@ -63,12 +70,36 @@ set :delayed_job_monitor, true
 
 set :whenever_roles, -> { :app }
 
+namespace :vendor_tool do
+  desc "Set up the vendor tool by cloning and running npm install."
+  task :setup do
+    on roles(:app) do
+      # Clone the repository only if the directory doesn't already exist
+      if test("! -d #{fetch(:vendor_tool_path)}")
+        info "Cloning vendor tool from #{fetch(:vendor_tool_repo)}..."
+        execute :git, "clone", "--depth", "1", fetch(:vendor_tool_repo), fetch(:vendor_tool_path)
+      else
+        info "Vendor tool already exists. Skipping clone."
+        # Optional: You could add `git pull` logic here if you want to update it on every deploy
+      end
+
+      # Run npm install inside the tool's directory
+      within fetch(:vendor_tool_path) do
+        info "Running npm install for vendor tool..."
+        # This command ensures we use the Node.js version managed by fnm
+        execute "bash -c '#{fetch(:fnm_setup_command)} && npm install'"
+      end
+    end
+  end
+end
+
+
 namespace :deploy do
   after "rvm1:hook", "map_node_bins"
 
   after :updating, "install_node"
   after :updating, "install_ruby"
-
+  after :updating, "vendor_tool:setup"
   after "deploy:migrate", "add_new_settings"
 
   after :publishing, "setup_puma"
@@ -163,6 +194,8 @@ task :execute_release_tasks do
     end
   end
 end
+
+
 
 desc "Create pid and socket folders needed by puma"
 task :setup_puma do
