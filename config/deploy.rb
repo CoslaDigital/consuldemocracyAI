@@ -16,7 +16,7 @@ end
 
 
 # ==> START: Configuration for Vendor Tool
-set :vendor_tool_repo, "https://github.com/CoslaDigital/sensemaking-tools.git"
+set :vendor_tool_repo, "https://github.com/CoslaDigita/sensemaking-tools.git"
 set :vendor_tool_name, "sensemaking-tools" # The directory name for the tool
 set :vendor_tool_path, -> { shared_path.join("vendor", fetch(:vendor_tool_name)) }
 
@@ -74,25 +74,27 @@ namespace :vendor_tool do
   desc "Set up the vendor tool by cloning and running npm install."
   task :setup do
     on roles(:app) do
-      # Clone the repository only if the directory doesn't already exist
-      if test("! -d #{fetch(:vendor_tool_path)}")
-        info "Cloning vendor tool from #{fetch(:vendor_tool_repo)}..."
-        execute :git, "clone", "--depth", "1", fetch(:vendor_tool_repo), fetch(:vendor_tool_path)
-      else
-        info "Vendor tool already exists. Skipping clone."
-        # Optional: You could add `git pull` logic here if you want to update it on every deploy
-      end
+      begin
+        # --- Part 1: Clone the repository ---
+        if test("! -d #{fetch(:vendor_tool_path)}")
+          info "Cloning vendor tool from #{fetch(:vendor_tool_repo)}..."
+          execute :git, "clone", "--depth", "1", fetch(:vendor_tool_repo), fetch(:vendor_tool_path)
+        else
+          info "Vendor tool already exists. Skipping clone."
+        end
 
-      # Run npm install inside the tool's directory
-      within fetch(:vendor_tool_path) do
-        info "Running npm install for vendor tool..."
-        # This command ensures we use the Node.js version managed by fnm
-        execute "bash -c '#{fetch(:fnm_setup_command)} && npm install'"
+        # --- Part 2: Run npm install inside the tool's directory ---
+        within fetch(:vendor_tool_path) do
+          info "Running npm install for vendor tool..."
+          execute "bash -c '#{fetch(:fnm_setup_command)} && npm install'"
+        end
+      rescue SSHKit::Command::Failed => e
+        warn "⚠️  Vendor tool setup failed: #{e.message}"
+        warn "Continuing deployment without the vendor tool."
       end
     end
   end
 end
-
 
 namespace :deploy do
   after "rvm1:hook", "map_node_bins"
