@@ -6,7 +6,7 @@ class Admin::ProposalsController < Admin::BaseController
 
   has_orders %w[created_at]
 
-  before_action :load_proposal, except: [:index, :successful]
+  before_action :load_proposal, except: [:index, :successful, :download_csv]
 
   def successful
     @proposals = Proposal.successful.sort_by_confidence_score
@@ -41,6 +41,16 @@ class Admin::ProposalsController < Admin::BaseController
     end
   end
 
+  def download_csv
+    @proposals = Proposal.all.order(created_at: :asc)
+    respond_to do |format|
+      format.csv do
+        send_data Proposal::Exporter.new(@proposals).to_csv,
+                  filename: "proposals.csv" 
+      end
+    end
+  end
+
   private
 
     def resource_model
@@ -49,6 +59,10 @@ class Admin::ProposalsController < Admin::BaseController
 
     def load_proposal
       @proposal = Proposal.find(params[:id])
+    end
+
+    def load_proposals
+      @proposals = Proposal.all
     end
 
     def proposal_params
