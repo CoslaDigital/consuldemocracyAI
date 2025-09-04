@@ -1,0 +1,34 @@
+<%= header %>
+
+<div class="sensemaker">
+  <%= form_for @sensemaker_job, url: admin_sensemaker_jobs_path, method: :post do |f| %>
+    <%= f.label :commentable_type, "Target" %>
+    <%= f.select :commentable_type, Comment::COMMENTABLE_TYPES, include_blank: "Select a target...", label: false, required: true %>
+    <%= f.label :commentable_id, "Target ID" %>
+    <%= f.text_field :commentable_id, label: false, placeholder: "Enter a target ID...", required: true %>
+
+    <%= f.select :script, Sensemaker::JobRunner::SCRIPTS, include_blank: "Select a script...", required: true %>
+
+    <div class="flex-between">
+      <%= link_to "← Cancel", admin_sensemaker_jobs_path, class: "" %>
+
+      <div>
+        <%= f.submit "Preview input",
+                     formaction: preview_admin_sensemaker_jobs_path,
+                     type: "submit",
+                     data: { remote: true, temp_disable: true, disable_with: false },
+                     class: "button" %>
+        <%= f.submit "Download input CSV",
+                     type: "submit",
+                     formaction: preview_admin_sensemaker_jobs_path(format: :csv),
+                     class: "button", data: { temp_disable: true, disable_with: false } %>
+        <%= f.submit "Run", data: { temp_disable: true, disable_with: false } %>
+      </div>
+    </div>
+  <% end %>
+
+  <%= content_tag "pre", id: "input-preview", class: "input-preview" do %>
+    <em>input preview</em>
+    <%# content of the preview result goes here %>
+  <% end %>
+</div>
