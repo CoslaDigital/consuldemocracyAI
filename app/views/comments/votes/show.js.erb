@@ -1,1 +1,21 @@
-$("#<%= dom_id(@comment) %>_votes").html("<%= j render Comments::VotesComponent.new(@comment) %>");
+// app/views/comments/votes/show.js.erb
+
+// 1. Find the container for the vote buttons.
+var containerId = "#<%= dom_id(@comment) %>_votes";
+var $container = $(containerId);
+
+// 2. Check which mode we're in by checking the container's class
+//    (Your _comment.html.erb partial gives it the class "comment-votes-survey-wrapper")
+if ($container.hasClass("comment-votes-survey-wrapper")) {
+
+  // --- SURVEY MODE ---
+  // Re-render the component *passing the survey flag*
+  $container.html("<%= j render Comments::VotesComponent.new(@comment, vote_style: :survey) %>");
+
+} else {
+
+  // --- DEFAULT MODE ---
+  // Re-render the component *without* the flag (or defaulting)
+  $container.html("<%= j render Comments::VotesComponent.new(@comment, vote_style: :default) %>");
+  
+}

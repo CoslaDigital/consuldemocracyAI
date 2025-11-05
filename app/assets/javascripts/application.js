@@ -125,10 +125,12 @@
 //= require_tree ./sdg_management
 //= require_tree ./custom
 //= require custom
+//= require survey_comments
 
 var initialize_modules = function() {
   "use strict";
 
+  App.SurveyComments.initialize();
   App.Options.initialize();
   App.Questions.initialize();
   App.Comments.initialize();

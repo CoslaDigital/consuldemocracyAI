@@ -42,6 +42,9 @@
         <div class="js-moderator-debate-actions margin">
           <%= render "actions", debate: @debate %>
         </div>
+        
+         <%= render "comments" %>
+
       </div>
 
       <aside class="small-12 medium-3 column">
@@ -69,5 +72,3 @@
     </div>
   </div>
 <% end %>
-
-<%= render "comments" %>

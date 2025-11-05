@@ -1,8 +1,9 @@
 class Comments::VotesComponent < ApplicationComponent
   attr_reader :comment
 
-  def initialize(comment)
+  def initialize(comment, vote_style: :default)
     @comment = comment
+    @vote_style = vote_style
   end
   
   private

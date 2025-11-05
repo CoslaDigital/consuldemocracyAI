@@ -1,6 +1,11 @@
-<%= render Shared::CommentsComponent.new(@debate, @comment_tree) do %>
-  <h3>
-    <%= t("debates.show.comments_title") %>
-    <span class="js-comments-count">(<%= @debate.comments_count %>)</span>
-  </h3>
+<%#
+  For development, hard-code the flag.
+%>
+<% debate_type = "survey" %>
+
+<% if debate_type == "survey" %>
+  <%# 1. RENDER THE NEW SURVEY VIEW (which we'll create next) %>
+  <%= render "debates/survey_comments", debate: @debate %>
+<% else %>
+  <%= render Shared::CommentsComponent.new(@debate) %>
 <% end %>
