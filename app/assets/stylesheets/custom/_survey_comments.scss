@@ -1,0 +1,77 @@
+/* app/assets/stylesheets/components/_survey_comments.scss */
+/* This file styles the ENTIRE survey experience. */
+@import "../settings"; // So we can use $dark-gray, etc.
+
+/* 1. The main "bounding box" for the whole component */
+#survey-comments-wrapper {
+  background: #fefefe;
+  border: 1px solid #cacaca;
+  border-radius: 3px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* 2. The new highlighted box for the Debate Description */
+.survey-debate-description {
+  margin-bottom: 1.5rem;
+  background-color: #f7f7f7;
+  border: 1px solid #ddd;
+}
+
+/* 3. The inner container that holds the comment slides */
+#survey-comments-container {
+  position: relative;
+  min-height: 200px;
+  border: none;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+/*
+  4. The wrapper for the LARGE vote buttons (from _comment.html.erb)
+     This is where we add the centering and border lines.
+*/
+.comment-votes-survey-wrapper {
+  text-align: center;
+  padding: 1.25rem 0;
+  margin: 1rem 0;
+  border-top: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+/*
+  5. The relocated "Please review..." instruction callout
+     (which is *inside* the .comment-votes-survey-wrapper)
+*/
+.comment-votes-survey-wrapper .survey-instruction-callout {
+  margin-top: 1.5rem;
+  text-align: left;
+  font-size: 0.9rem;
+  
+  // Give it a more subtle look
+  background-color: #f7f7f7;
+  border: none;
+  color: #555;
+}
+
+/* 6. The navigation (Previous/Next) styles */
+.survey-comments-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.survey-comments-counter {
+  font-style: italic;
+  color: $dark-gray;
+}
+
+/* 7. The "Add a Comment" form area */
+.survey-comments-add-new {
+  text-align: center;
+  margin-top: 1rem;
+  border-top: 1px solid #e6e6e6;
+  padding-top: 1rem;
+}

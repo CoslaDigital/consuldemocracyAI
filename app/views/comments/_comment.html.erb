@@ -71,6 +71,10 @@
     <div id="<%= dom_id(comment) %>_votes" class="comment-votes-survey-wrapper">
       <%= render Comments::VotesComponent.new(comment, vote_style: :survey) %>
     </div>
+     <div class="callout primary">
+    <p>Please review the comments one by one. Click "Not Sure", "I agree", or "I disagree" on each comment to have your vote counted.</p>
+  </div>
+
   <% end %>
 <% end %>
         <% if local_assigns.fetch(:show_replies, true) %>

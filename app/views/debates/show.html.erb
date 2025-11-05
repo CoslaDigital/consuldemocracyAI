@@ -8,6 +8,8 @@
           @debate.author,
           Flag.flagged?(current_user, @debate),
           current_user&.voted_as_when_voted_for(@debate)] do %>
+   <% debate_type = "survey" %>
+
   <div class="debate-show">
     <div id="<%= dom_id(@debate) %>" class="row">
       <div class="small-12 medium-9 column">
@@ -32,8 +34,10 @@
             <%= render "shared/flag_actions", flaggable: @debate %>
           </span>
         </div>
+        <% if debate_type != "survey" %>
+           <%= auto_link_already_sanitized_html wysiwyg(@debate.description) %>
+         <% end %>
 
-        <%= auto_link_already_sanitized_html wysiwyg(@debate.description) %>
 
         <%= render "shared/tags", taggable: @debate %>
 
