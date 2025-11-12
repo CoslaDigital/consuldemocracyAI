@@ -1,11 +1,6 @@
-<%#
-  For development, hard-code the flag.
-%>
-<% debate_type = "survey" %>
 
-<% if debate_type == "survey" %>
-  <%# 1. RENDER THE NEW SURVEY VIEW (which we'll create next) %>
+<% if @debate.survey? %>
   <%= render "debates/survey_comments", debate: @debate %>
 <% else %>
-  <%= render Shared::CommentsComponent.new(@debate) %>
+  <%= render Shared::CommentsComponent.new(@debate, @comment_tree) %>
 <% end %>
