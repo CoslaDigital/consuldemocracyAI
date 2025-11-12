@@ -1,19 +1,13 @@
-<%#
-  This is the new "survey" view.
-%>
 <div id="survey-comments-wrapper">
 
-  <div class.new="callout secondary survey-debate-description">
+  <div class="callout secondary survey-debate-description">
     <strong><%= t("debates.show.debate_description", default: "Debate Description") %></strong>
     <%= auto_link_already_sanitized_html wysiwyg(debate.description) %>
   </div>
 
   <div id="survey-comments-container">
     <%#
-      We render all comments in a loop.
       Our jQuery script will hide them all except the active one.
-      We re-use your `comments/_comment` partial, which already has the
-      voting buttons inside it.
     %>
     <% debate.comments.each_with_index do |comment, index| %>
       <div class="survey-comment-slide" data-index="<%= index %>">
@@ -41,7 +35,6 @@
   </div>
 
   <div class="survey-comments-add-new">
-  <%# We re-use your app's existing logic to show the form or a login link %>
   <% if current_user %>
     <%#
       We render the form directly, just like your Shared::CommentsComponent does.
