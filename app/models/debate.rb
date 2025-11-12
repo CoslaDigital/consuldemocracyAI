@@ -177,4 +177,8 @@ class Debate < ApplicationRecord
       translation.errors.add(:description, :too_long, count: Debate.description_max_length)
     end
   end
+  
+  def survey?
+    self.title.include?("Survey")
+  end
 end
