@@ -1,26 +1,11 @@
 <%# app/components/comments/votes_component.html.erb %>
 
 <% if @vote_style == :survey %>
-  
   <%# --- SURVEY MODE --- %>
-  <%# This renders the LARGE, CENTERED buttons (which already work) %>
-
-  <%# if can_vote? %>
-    <%= render Shared::InFavorNeutralAgainstComponent.new(comment) %>
-  <%# else %>
-    <%#= render Shared::ParticipationNotAllowedComponent.new(comment, cannot_vote_text: cannot_vote_text) %>
-  <%# end %>
-  
-  <span class="total-votes">
-    <%= t("comments.comment.votes", count: comment.total_votes) %>
-  </span>
+  <%= render Shared::InFavorNeutralAgainstComponent.new(comment) %>
 
 <% else %>
-  
   <%# --- DEFAULT MODE --- %>
-  <%# This renders the SMALL, INLINE buttons (for your old comment list) %>
-  <%# This is the code you provided, which we know works. %>
-
   <strong><%= t("comments.comment.votes", count: comment.total_votes) %></strong>
   &nbsp;|&nbsp;
 
