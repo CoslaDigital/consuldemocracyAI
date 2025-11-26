@@ -58,6 +58,7 @@ en:
       oldest: Oldest first
       most_commented: Most commented
     show:
+      no_comments: There are no comments to display. Be the first to leave a comment
       return_to_commentable: "Go back to "
   comments_helper:
     comment_button: Publish comment
@@ -130,6 +131,7 @@ en:
       flag: This debate has been flagged as inappropriate by several users.
       share: Share
       author: Author
+      survey_help: Please review the comments one by one. Click "Not Sure", "I agree", or "I disagree" on each comment to have your vote counted.
     update:
       form:
         submit_button: Save changes

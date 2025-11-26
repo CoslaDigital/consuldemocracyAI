@@ -1,33 +1,31 @@
 <div id="survey-comments-wrapper">
+  
+  <div class="callout primary">
+     <p><%= t("debates.show.survey_help") %></p>
+  </div>
 
   <div class="callout secondary survey-debate-description">
-    <strong><%= t("debates.show.debate_description", default: "Debate Description") %></strong>
-    <%= auto_link_already_sanitized_html wysiwyg(debate.description) %>
+    <strong><%= debate.title %></strong>
+    <%= raw debate.description %>
   </div>
 
   <div id="survey-comments-container">
-    <%#
-      Our jQuery script will hide them all except the active one.
-    %>
     <% debate.comments.each_with_index do |comment, index| %>
       <div class="survey-comment-slide" data-index="<%= index %>">
         <%= render "comments/comment", comment: comment, valuation: false, show_replies: false, vote_style: :survey %>
       </div>
     <% end %>
 
-    <%# This message will be shown by jQuery if there are 0 comments %>
     <div id="survey-no-comments" style="display: none;">
-      <p>There are no comments yet. Be the first to add one!</p>
+      <p><%= t("comments.show.no_comments") %></p>
     </div>
   </div>
 
-  <%# These are the navigation arrows and counter %>
   <div class="survey-comments-navigation">
     <button class="button" id="survey-prev-button">
       &larr; Previous Comment
     </button>
     <span class="survey-comments-counter" id="survey-counter">
-      <%# jQuery will update this text %>
     </span>
     <button class="button" id="survey-next-button">
       Next Comment &rarr;
@@ -36,10 +34,6 @@
 
   <div class="survey-comments-add-new">
   <% if current_user %>
-    <%#
-      We render the form directly, just like your Shared::CommentsComponent does.
-      `record` is the debate, and `valuation` is false.
-    %>
     <%= render Comments::FormComponent.new(debate, valuation: false) %>
   <% else %>
     <%= render "shared/login_to_comment" %>
