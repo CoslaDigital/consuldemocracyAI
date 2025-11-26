@@ -64,9 +64,6 @@
         </div>
         <% if vote_style == :survey %>
           <% unless valuation %>
-            <div class="callout primary">
-              <p>Please review the comments one by one. Click "Not Sure", "I agree", or "I disagree" on each comment to have your vote counted.</p>
-            </div>
             <div id="<%= dom_id(comment) %>_votes" class="comment-votes-survey-wrapper">
               <%= render Comments::VotesComponent.new(comment, vote_style: :survey) %>
             </div>
