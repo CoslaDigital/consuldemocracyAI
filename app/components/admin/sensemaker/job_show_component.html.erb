@@ -137,6 +137,25 @@
           <% end %>
         </ul>
       </section>
+
+      <% if sensemaker_job.script == "advanced_runner.ts" && sensemaker_job.has_outputs? %>
+        <% topic_stats_path = sensemaker_job.output_artifact_paths.find { |p| p.end_with?("-topic-stats.json") } %>
+        <% summary_path = sensemaker_job.output_artifact_paths.find { |p| p.end_with?("-summary.json") } %>
+        <% if topic_stats_path && summary_path && File.exist?(topic_stats_path) && File.exist?(summary_path) %>
+          <section class="margin-bottom">
+            <h3>Visualization</h3>
+            <p class="help-text">Topics overview chart showing the distribution of statements across topics and subtopics.</p>
+            <div class="sensemaker-visualization-container">
+              <sensemaker-chart
+                data-source="<%= serve_comments_sensemaker_job_path(sensemaker_job) %>"
+                summary-source="<%= serve_summary_sensemaker_job_path(sensemaker_job) %>"
+                chart-type="topics-overview">
+              </sensemaker-chart>
+            </div>
+          </section>
+          <%= javascript_include_tag "sensemaker_visualizations", "data-turbolinks-track" => "reload" %>
+        <% end %>
+      <% end %>
     <% end %>
   <% else %>
     <div class="callout primary">
