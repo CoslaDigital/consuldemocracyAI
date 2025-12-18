@@ -166,4 +166,151 @@ describe Sensemaker::JobsController do
       end
     end
   end
+
+  describe "GET #serve_comments" do
+    let(:admin) { create(:administrator).user }
+    let(:comments_file) { "#{job.persisted_output}-comments-with-scores.json" }
+
+    before do
+      FileUtils.mkdir_p(File.dirname(comments_file))
+      File.write(comments_file, '{"comments": []}')
+    end
+
+    after do
+      FileUtils.rm_f(comments_file)
+    end
+
+    context "when user is an administrator" do
+      before { sign_in(admin) }
+
+      context "when job exists and file exists" do
+        it "sends the file with correct headers" do
+          get :serve_comments, params: { id: job.id }
+
+          expect(response).to have_http_status(:ok)
+          expect(response.headers["Content-Type"]).to eq("application/json")
+          expect(response.headers["Content-Disposition"]).to include("inline")
+          expect(response.headers["Content-Disposition"]).to include("comments-with-scores.json")
+          expect(response.body).to include("comments")
+        end
+      end
+
+      context "when file does not exist" do
+        before do
+          FileUtils.rm_f(comments_file)
+        end
+
+        it "returns 404" do
+          get :serve_comments, params: { id: job.id }
+
+          expect(response).to have_http_status(:not_found)
+        end
+      end
+
+      context "when job has no persisted_output and uses default_output_path" do
+        let(:job_without_persisted) do
+          create(:sensemaker_job,
+                 analysable_type: "Debate",
+                 analysable_id: debate.id,
+                 user: admin,
+                 finished_at: Time.current,
+                 persisted_output: nil,
+                 published: true,
+                 script: "advanced_runner.ts")
+        end
+        let(:default_comments_file) do
+          base_path = job_without_persisted.default_output_path
+          "#{base_path}-comments-with-scores.json"
+        end
+
+        before do
+          FileUtils.mkdir_p(File.dirname(default_comments_file))
+          File.write(default_comments_file, '{"comments": []}')
+        end
+
+        after do
+          FileUtils.rm_f(default_comments_file)
+        end
+
+        it "sends the file from default_output_path" do
+          get :serve_comments, params: { id: job_without_persisted.id }
+
+          expect(response).to have_http_status(:ok)
+          expect(response.headers["Content-Type"]).to eq("application/json")
+        end
+      end
+    end
+  end
+
+  describe "GET #serve_summary" do
+    let(:admin) { create(:administrator).user }
+    let(:summary_file) { "#{job.persisted_output}-summary.json" }
+
+    before do
+      FileUtils.mkdir_p(File.dirname(summary_file))
+      File.write(summary_file, '{"summary": "test"}')
+    end
+
+    after do
+      FileUtils.rm_f(summary_file)
+    end
+
+    context "when user is an administrator" do
+      before { sign_in(admin) }
+
+      context "when job exists and file exists" do
+        it "sends the file with correct headers" do
+          get :serve_summary, params: { id: job.id }
+
+          expect(response).to have_http_status(:ok)
+          expect(response.headers["Content-Type"]).to eq("application/json")
+          expect(response.headers["Content-Disposition"]).to include("inline")
+          expect(response.headers["Content-Disposition"]).to include("summary.json")
+          expect(response.body).to include("summary")
+        end
+      end
+
+      context "when file does not exist" do
+        before do
+          FileUtils.rm_f(summary_file)
+        end
+
+        it "returns 404" do
+          get :serve_summary, params: { id: job.id }
+
+          expect(response).to have_http_status(:not_found)
+        end
+      end
+    end
+  end
+
+  describe "GET #serve_topic_stats" do
+    let(:admin) { create(:administrator).user }
+    let(:topic_stats_file) { "#{job.persisted_output}-topic-stats.json" }
+
+    before do
+      FileUtils.mkdir_p(File.dirname(topic_stats_file))
+      File.write(topic_stats_file, '{"topics": []}')
+    end
+
+    after do
+      FileUtils.rm_f(topic_stats_file)
+    end
+
+    context "when user is an administrator" do
+      before { sign_in(admin) }
+
+      context "when job exists and file exists" do
+        it "sends the file with correct headers" do
+          get :serve_topic_stats, params: { id: job.id }
+
+          expect(response).to have_http_status(:ok)
+          expect(response.headers["Content-Type"]).to eq("application/json")
+          expect(response.headers["Content-Disposition"]).to include("inline")
+          expect(response.headers["Content-Disposition"]).to include("topic-stats.json")
+          expect(response.body).to include("topics")
+        end
+      end
+    end
+  end
 end

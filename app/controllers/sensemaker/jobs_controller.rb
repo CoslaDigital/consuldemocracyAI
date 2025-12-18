@@ -110,11 +110,7 @@ class Sensemaker::JobsController < ApplicationController
     end
 
     def find_output_file(job, suffix)
-      base_path = if job.persisted_output.present?
-                    job.persisted_output
-                  else
-                    job.default_output_path
-                  end
+      base_path = job.persisted_output.presence || job.default_output_path
       file_path = "#{base_path}-#{suffix}"
       File.exist?(file_path) ? file_path : nil
     end
