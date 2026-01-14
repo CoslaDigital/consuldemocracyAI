@@ -140,8 +140,8 @@
 
       <% if sensemaker_job.script == "advanced_runner.ts" && sensemaker_job.has_outputs? %>
         <section class="margin-bottom">
-          <h3>Topics Overview</h3>
-          <p class="help-text">Stacked bar charts show topic distribution and statement counts.</p>
+          <h3><%= t("admin.sensemaker.job_show.topics_overview") %></h3>
+          <p class="help-text"><%= t("admin.sensemaker.job_show.topics_overview_help") %></p>
           <div class="sensemaker-visualization-container">
             <sensemaker-chart
               data-source="<%= serve_comments_sensemaker_job_path(sensemaker_job) %>"
@@ -152,8 +152,8 @@
         </section>
 
         <section class="margin-bottom">
-          <h3>Topics Distribution</h3>
-          <p class="help-text">Shows topic and subtopic statement count and aggregated statement alignment.</p>
+          <h3><%= t("admin.sensemaker.job_show.topics_distribution") %></h3>
+          <p class="help-text"><%= t("admin.sensemaker.job_show.topics_distribution_help") %></p>
           <div class="sensemaker-visualization-container">
             <sensemaker-chart
               data-source="<%= serve_comments_sensemaker_job_path(sensemaker_job) %>"

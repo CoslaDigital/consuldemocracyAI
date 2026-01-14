@@ -1798,6 +1798,10 @@ en:
         actions: "Actions"
         output_files: "Output files"
         select_file_download: "Select a file to download."
+        topics_overview: "Topics Overview"
+        topics_overview_help: "Stacked bar charts show topic distribution and statement counts."
+        topics_distribution: "Topics Distribution"
+        topics_distribution_help: "Shows topic and subtopic statement count and aggregated statement alignment."
       help:
         title_1: "What is Sensemaker?"
         description_1: "Sensemaker is a tool that helps you make sense of large-scale conversations."

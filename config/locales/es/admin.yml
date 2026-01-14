@@ -1846,6 +1846,10 @@ es:
         actions: "Acciones"
         output_files: "Archivos de salida"
         select_file_download: "Selecciona un archivo para descargar."
+        topics_overview: "Resumen de Temas"
+        topics_overview_help: "Los gráficos de barras apiladas muestran la distribución de temas y el recuento de declaraciones."
+        topics_distribution: "Distribución de Temas"
+        topics_distribution_help: "Muestra el recuento de declaraciones por tema y subtema y la alineación agregada de declaraciones."
       help:
         title_1: "¿Qué es Sensemaker?"
         description_1: "Sensemaker es una herramienta que te ayuda a dar sentido a conversaciones a gran escala."
