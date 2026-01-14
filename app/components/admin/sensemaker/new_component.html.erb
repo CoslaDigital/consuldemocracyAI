@@ -16,7 +16,7 @@
     <%= form_tag new_admin_sensemaker_job_path, class: "", method: :get do %>
       <% conversation = @sensemaker_job.conversation if @sensemaker_job.analysable_type.present? %>
       <% unless conversation&.target.present? %>
-        <p>Select a target from the results <%= link_to "or analyse all proposals", new_admin_sensemaker_job_path(target_type: "Proposal", target_id: nil), class: "bold" if selected_query_type.eql?("Proposal") %>.</p>
+        <p><%= t("admin.sensemaker.new.select_target") %> <%= link_to "or analyse all proposals", new_admin_sensemaker_job_path(target_type: "Proposal", target_id: nil), class: "bold" if selected_query_type.eql?("Proposal") %>.</p>
       <% end %>
 
       <div class="target-search-group">
@@ -28,7 +28,7 @@
 
       <details <% unless params[:target_type].present? %> open<% end %>>
         <summary>
-          <%= @result_count %> results
+          <%= @result_count %> <%= t("admin.sensemaker.new.results") %>
         </summary>
         <ul class="target-search-results">
           <% if @search_results.blank? %>
@@ -55,8 +55,8 @@
       <%= f.hidden_field :analysable_type, label: false, required: true %>
       <%= f.hidden_field :analysable_id, label: false, required: false %>
 
-      <h4>Analysing <%= conversation.target_label(format: :short) %></h4>
-      <p>Review the additional context, then select a script to run.</p>
+      <h4><%= t("admin.sensemaker.new.analysing") %> <%= conversation.target_label(format: :short) %></h4>
+      <p><%= t("admin.sensemaker.new.review_context") %></p>
 
       <%= f.text_area :additional_context, label: "Additional context", rows: 10 %>
 
