@@ -50,6 +50,17 @@ describe Sensemaker::Conversation do
       expect(context_result).not_to include("</p>")
     end
 
+    it "decodes HTML entities like &nbsp; and &#39; from Proposal description" do
+      proposal = create(:proposal,
+                        description: "<p>Tell us what matters to you and share your&nbsp;ideas. You&#39;ve seen this before.</p>")
+      conversation = Sensemaker::Conversation.new("Proposal", proposal.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("Tell us what matters to you and share your ideas. You've seen this before.")
+      expect(context_result).not_to include("&nbsp;")
+      expect(context_result).not_to include("&#39;")
+    end
+
     it "can compile context for Debate" do
       debate = create(:debate)
       expect(debate.persisted?).to be true
@@ -72,6 +83,16 @@ describe Sensemaker::Conversation do
       expect(context_result).not_to include("<strong>")
       expect(context_result).not_to include("<em>")
       expect(context_result).not_to include("</p>")
+    end
+
+    it "decodes HTML entities like &nbsp; from Debate description" do
+      debate = create(:debate, description: "<p>How do you feel about the overall safety of our community&nbsp; and what are your biggest concerns?</p>")
+      conversation = Sensemaker::Conversation.new("Debate", debate.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("How do you feel about the overall safety of our community and what are your biggest concerns?")
+      expect(context_result).not_to include("&nbsp;")
+      expect(context_result).not_to include("<p>")
     end
 
     it "can compile context for Legislation::Proposal" do

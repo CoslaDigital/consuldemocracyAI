@@ -2,7 +2,7 @@ require "shellwords"
 
 module Sensemaker
   class JobRunner
-    TIMEOUT = 900
+    TIMEOUT = 1800
     attr_reader :job
 
     SCRIPTS = [
