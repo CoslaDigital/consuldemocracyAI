@@ -118,7 +118,8 @@ module Sensemaker
       def self.sanitize_html(text)
         return "" if text.blank?
 
-        ActionView::Base.full_sanitizer.sanitize(text.to_s).squish
+        decoded = Nokogiri::HTML.fragment(text.to_s).text
+        decoded.squish
       end
 
       def self.compile_context_for_target(target, comments_count: nil)
