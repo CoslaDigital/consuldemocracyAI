@@ -50,7 +50,7 @@ module Sensemaker
       if job.script == "single-html-build.js"
         "#{Sensemaker::Paths.visualization_folder}/single-html-build.js"
       else
-        "#{Sensemaker::Paths.sensemaker_folder}/library/runner-cli/#{job.script}"
+        "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/#{job.script}"
       end
     end
 
@@ -234,8 +234,8 @@ module Sensemaker
           return false
         end
 
-        return false unless file_exists?(Sensemaker::Paths.sensemaker_folder,
-                                         description: "sensemaking-tools folder")
+        return false unless file_exists?(Sensemaker::Paths.sensemaker_package_folder,
+                                         description: "sensemaking-tools package folder")
         return false unless file_exists?(Sensemaker::Paths.sensemaker_data_folder,
                                          description: "Sensemaker data folder")
 
