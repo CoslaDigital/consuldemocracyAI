@@ -138,15 +138,15 @@ describe Sensemaker::JobRunner do
       expect(job.error).to include("NPX not found")
     end
 
-    it "returns false when the sensemaking-tools folder does not exist" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(false)
+    it "returns false when the sensemaking-tools package folder does not exist" do
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(false)
 
       result = service.send(:check_dependencies?)
 
       expect(result).to be false
       job.reload
       expect(job.finished_at).to be_present
-      expect(job.error).to include("sensemaking-tools folder not found")
+      expect(job.error).to include("sensemaking-tools package folder not found")
     end
 
     it "returns false when the sensemaking data folder does not exist" do
@@ -161,7 +161,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns false when the input file does not exist" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(true)
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
       allow(File).to receive(:exist?).with(service.input_file).and_return(false)
 
       result = service.send(:check_dependencies?)
@@ -173,7 +173,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns false when the key file does not exist" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(true)
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
       allow(File).to receive(:exist?).with(service.input_file).and_return(true)
       allow(File).to receive(:exist?).with(service.key_file).and_return(false)
 
@@ -186,7 +186,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns false when the key file is invalid JSON" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(true)
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
       allow(File).to receive(:exist?).with(service.input_file).and_return(true)
       allow(File).to receive(:exist?).with(service.key_file).and_return(true)
       allow(File).to receive(:read).with(service.key_file).and_return("invalid json")
@@ -200,7 +200,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns false when the key file is missing project_id" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(true)
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
       allow(File).to receive(:exist?).with(service.input_file).and_return(true)
       allow(File).to receive(:exist?).with(service.key_file).and_return(true)
       allow(File).to receive(:read).with(service.key_file).and_return('{"type": "service_account"}')
@@ -214,7 +214,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns false when the script file does not exist" do
-      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_folder).and_return(true)
+      allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
       allow(File).to receive(:exist?).with(service.input_file).and_return(true)
       allow(File).to receive(:exist?).with(service.key_file).and_return(true)
       allow(File).to receive(:exist?).with(service.script_file).and_return(false)
@@ -368,6 +368,40 @@ describe Sensemaker::JobRunner do
         job.input_file = ""
         expect(service.input_file).not_to eq("")
       end
+    end
+  end
+
+  describe "#script_file" do
+    let(:service) { Sensemaker::JobRunner.new(job) }
+
+    it "returns the correct path for categorization_runner.ts" do
+      job.script = "categorization_runner.ts"
+      expected_file = "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/categorization_runner.ts"
+      expect(service.script_file).to eq(expected_file)
+    end
+
+    it "returns the correct path for runner.ts" do
+      job.script = "runner.ts"
+      expected_file = "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/runner.ts"
+      expect(service.script_file).to eq(expected_file)
+    end
+
+    it "returns the correct path for advanced_runner.ts" do
+      job.script = "advanced_runner.ts"
+      expected_file = "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/advanced_runner.ts"
+      expect(service.script_file).to eq(expected_file)
+    end
+
+    it "returns the correct path for health_check_runner.ts" do
+      job.script = "health_check_runner.ts"
+      expected_file = "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/health_check_runner.ts"
+      expect(service.script_file).to eq(expected_file)
+    end
+
+    it "returns the correct path for single-html-build.js" do
+      job.script = "single-html-build.js"
+      expected_file = "#{Sensemaker::Paths.visualization_folder}/single-html-build.js"
+      expect(service.script_file).to eq(expected_file)
     end
   end
 
