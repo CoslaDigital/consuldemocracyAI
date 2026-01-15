@@ -277,10 +277,10 @@ describe Sensemaker::Conversation do
     describe "sanitizes HTML from comment-like items" do
       it "sanitizes HTML from Budget::Investment description in comments" do
         budget = create(:budget)
-        investment = create(:budget_investment,
-                            budget: budget,
-                            title: "Test Investment",
-                            description: "<p>Investment <strong>description</strong> with <em>HTML</em> tags.</p>")
+        create(:budget_investment,
+               budget: budget,
+               title: "Test Investment",
+               description: "<p>Investment <strong>description</strong> with <em>HTML</em> tags.</p>")
 
         conversation = Sensemaker::Conversation.new("Budget", budget.id)
         comments = conversation.comments
@@ -295,9 +295,9 @@ describe Sensemaker::Conversation do
       end
 
       it "sanitizes HTML from Proposal description in comments" do
-        proposal = create(:proposal,
-                          title: "Test Proposal",
-                          description: "<p>Proposal <strong>description</strong> with <em>HTML</em> tags.</p>")
+        create(:proposal,
+               title: "Test Proposal",
+               description: "<p>Proposal <strong>description</strong> with <em>HTML</em> tags.</p>")
 
         conversation = Sensemaker::Conversation.new("Proposal", nil)
         comments = conversation.comments
@@ -315,10 +315,10 @@ describe Sensemaker::Conversation do
         budget = create(:budget)
         group = create(:budget_group, budget: budget)
         heading = create(:budget_heading, group: group)
-        investment = create(:budget_investment,
-                           heading: heading,
-                           title: "Group Investment",
-                           description: "<p>Group <strong>investment</strong> description.</p>")
+        create(:budget_investment,
+               heading: heading,
+               title: "Group Investment",
+               description: "<p>Group <strong>investment</strong> description.</p>")
 
         conversation = Sensemaker::Conversation.new("Budget::Group", group.id)
         comments = conversation.comments

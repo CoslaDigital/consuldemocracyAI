@@ -117,6 +117,7 @@ module Sensemaker
 
       def self.sanitize_html(text)
         return "" if text.blank?
+
         ActionView::Base.full_sanitizer.sanitize(text.to_s).squish
       end
 
