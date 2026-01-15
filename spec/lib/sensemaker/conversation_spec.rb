@@ -52,11 +52,13 @@ describe Sensemaker::Conversation do
 
     it "decodes HTML entities like &nbsp; and &#39; from Proposal description" do
       proposal = create(:proposal,
-                        description: "<p>Tell us what matters to you and share your&nbsp;ideas. You&#39;ve seen this before.</p>")
+                        description: "<p>Tell us what matters to you and share your&nbsp;ideas. " \
+                                     "You&#39;ve seen this before.</p>")
       conversation = Sensemaker::Conversation.new("Proposal", proposal.id)
       context_result = conversation.compile_context
 
-      expect(context_result).to include("Tell us what matters to you and share your ideas. You've seen this before.")
+      expected_text = "Tell us what matters to you and share your ideas. You've seen this before."
+      expect(context_result).to include(expected_text)
       expect(context_result).not_to include("&nbsp;")
       expect(context_result).not_to include("&#39;")
     end
@@ -86,11 +88,15 @@ describe Sensemaker::Conversation do
     end
 
     it "decodes HTML entities like &nbsp; from Debate description" do
-      debate = create(:debate, description: "<p>How do you feel about the overall safety of our community&nbsp; and what are your biggest concerns?</p>")
+      debate = create(:debate,
+                      description: "<p>How do you feel about the overall safety of our community&nbsp; " \
+                                   "and what are your biggest concerns?</p>")
       conversation = Sensemaker::Conversation.new("Debate", debate.id)
       context_result = conversation.compile_context
 
-      expect(context_result).to include("How do you feel about the overall safety of our community and what are your biggest concerns?")
+      expected_text = "How do you feel about the overall safety of our community and " \
+                     "what are your biggest concerns?"
+      expect(context_result).to include(expected_text)
       expect(context_result).not_to include("&nbsp;")
       expect(context_result).not_to include("<p>")
     end
