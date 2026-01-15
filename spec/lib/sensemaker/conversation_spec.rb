@@ -95,7 +95,7 @@ describe Sensemaker::Conversation do
       context_result = conversation.compile_context
 
       expected_text = "How do you feel about the overall safety of our community and " \
-                     "what are your biggest concerns?"
+                      "what are your biggest concerns?"
       expect(context_result).to include(expected_text)
       expect(context_result).not_to include("&nbsp;")
       expect(context_result).not_to include("<p>")
