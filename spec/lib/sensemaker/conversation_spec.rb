@@ -35,6 +35,21 @@ describe Sensemaker::Conversation do
       )
     end
 
+    it "sanitizes HTML from Proposal description and summary" do
+      proposal = create(:proposal,
+                        description: "<p>This is a <strong>description</strong> with <em>HTML</em> tags.</p>",
+                        summary: "<p>This is a <strong>summary</strong>.</p>")
+      conversation = Sensemaker::Conversation.new("Proposal", proposal.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("This is a description with HTML tags.")
+      expect(context_result).to include("This is a summary.")
+      expect(context_result).not_to include("<p>")
+      expect(context_result).not_to include("<strong>")
+      expect(context_result).not_to include("<em>")
+      expect(context_result).not_to include("</p>")
+    end
+
     it "can compile context for Debate" do
       debate = create(:debate)
       expect(debate.persisted?).to be true
@@ -45,6 +60,18 @@ describe Sensemaker::Conversation do
       expect(context_result).to include(
         "This debate has #{debate.cached_votes_up} votes for and #{debate.cached_votes_down} votes against"
       )
+    end
+
+    it "sanitizes HTML from Debate description" do
+      debate = create(:debate, description: "<p><strong>How do you feel</strong> about <em>safety</em>?</p>")
+      conversation = Sensemaker::Conversation.new("Debate", debate.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("How do you feel about safety?")
+      expect(context_result).not_to include("<p>")
+      expect(context_result).not_to include("<strong>")
+      expect(context_result).not_to include("<em>")
+      expect(context_result).not_to include("</p>")
     end
 
     it "can compile context for Legislation::Proposal" do
@@ -59,6 +86,20 @@ describe Sensemaker::Conversation do
       )
     end
 
+    it "sanitizes HTML from Legislation::Proposal description and summary" do
+      proposal = create(:legislation_proposal,
+                        description: "<p>Legislation <strong>description</strong> with HTML.</p>",
+                        summary: "<p>Legislation <em>summary</em>.</p>")
+      conversation = Sensemaker::Conversation.new("Legislation::Proposal", proposal.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("Legislation description with HTML.")
+      expect(context_result).to include("Legislation summary.")
+      expect(context_result).not_to include("<p>")
+      expect(context_result).not_to include("<strong>")
+      expect(context_result).not_to include("<em>")
+    end
+
     it "can compile context for Legislation::Question without question options" do
       question = create(:legislation_question)
       expect(question.persisted?).to be true
@@ -70,6 +111,18 @@ describe Sensemaker::Conversation do
         "This debate is part of the legislation process, \"#{question.process.title}\""
       )
       expect(context_result).not_to include("### Debate Responses")
+    end
+
+    it "sanitizes HTML from Legislation::Question description" do
+      question = create(:legislation_question,
+                        description: "<p>Question <strong>description</strong> with <em>HTML</em>.</p>")
+      conversation = Sensemaker::Conversation.new("Legislation::Question", question.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to include("Question description with HTML.")
+      expect(context_result).not_to include("<p>")
+      expect(context_result).not_to include("<strong>")
+      expect(context_result).not_to include("<em>")
     end
 
     it "can compile context for Legislation::Question with question options" do
@@ -218,6 +271,63 @@ describe Sensemaker::Conversation do
         expect(comments.size).to eq(1)
         expect(comments.first.cached_votes_up).to eq(11)
         expect(comments.first.cached_votes_total).to eq(11)
+      end
+    end
+
+    describe "sanitizes HTML from comment-like items" do
+      it "sanitizes HTML from Budget::Investment description in comments" do
+        budget = create(:budget)
+        investment = create(:budget_investment,
+                            budget: budget,
+                            title: "Test Investment",
+                            description: "<p>Investment <strong>description</strong> with <em>HTML</em> tags.</p>")
+
+        conversation = Sensemaker::Conversation.new("Budget", budget.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.body).to include("Test Investment")
+        expect(comments.first.body).to include("Investment description with HTML tags.")
+        expect(comments.first.body).not_to include("<p>")
+        expect(comments.first.body).not_to include("<strong>")
+        expect(comments.first.body).not_to include("<em>")
+        expect(comments.first.body).not_to include("</p>")
+      end
+
+      it "sanitizes HTML from Proposal description in comments" do
+        proposal = create(:proposal,
+                          title: "Test Proposal",
+                          description: "<p>Proposal <strong>description</strong> with <em>HTML</em> tags.</p>")
+
+        conversation = Sensemaker::Conversation.new("Proposal", nil)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.body).to include("Test Proposal")
+        expect(comments.first.body).to include("Proposal description with HTML tags.")
+        expect(comments.first.body).not_to include("<p>")
+        expect(comments.first.body).not_to include("<strong>")
+        expect(comments.first.body).not_to include("<em>")
+        expect(comments.first.body).not_to include("</p>")
+      end
+
+      it "sanitizes HTML from Budget::Group investment description" do
+        budget = create(:budget)
+        group = create(:budget_group, budget: budget)
+        heading = create(:budget_heading, group: group)
+        investment = create(:budget_investment,
+                           heading: heading,
+                           title: "Group Investment",
+                           description: "<p>Group <strong>investment</strong> description.</p>")
+
+        conversation = Sensemaker::Conversation.new("Budget::Group", group.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.body).to include("Group Investment")
+        expect(comments.first.body).to include("Group investment description.")
+        expect(comments.first.body).not_to include("<p>")
+        expect(comments.first.body).not_to include("<strong>")
       end
     end
   end

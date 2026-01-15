@@ -29,7 +29,7 @@ module Sensemaker
         investments.map do |investment|
           CommentLikeItem.new(
             id: investment.id,
-            body: "#{investment.title}\n\n#{investment.description}",
+            body: "#{investment.title}\n\n#{self.class.sanitize_html(investment.description)}",
             cached_votes_up: 1 + investment.cached_votes_up,
             cached_votes_down: 0,
             cached_votes_total: 1 + investment.cached_votes_up,
@@ -41,7 +41,7 @@ module Sensemaker
         proposals.map do |proposal|
           CommentLikeItem.new(
             id: proposal.id,
-            body: "#{proposal.title}\n\n#{proposal.description}",
+            body: "#{proposal.title}\n\n#{self.class.sanitize_html(proposal.description)}",
             cached_votes_up: 1 + proposal.cached_votes_up,
             cached_votes_down: 0,
             cached_votes_total: 1 + proposal.cached_votes_up,
@@ -115,6 +115,11 @@ module Sensemaker
 
     private
 
+      def self.sanitize_html(text)
+        return "" if text.blank?
+        ActionView::Base.full_sanitizer.sanitize(text.to_s).squish
+      end
+
       def self.compile_context_for_target(target, comments_count: nil)
         parts = []
 
@@ -130,15 +135,15 @@ module Sensemaker
         end
 
         if target.respond_to?(:summary)
-          parts << I18n.t("sensemaker.context.summary", summary: target.summary)
+          parts << I18n.t("sensemaker.context.summary", summary: sanitize_html(target.summary))
         end
 
         if target.respond_to?(:description) && target.description.present?
-          parts << I18n.t("sensemaker.context.description", description: target.description)
+          parts << I18n.t("sensemaker.context.description", description: sanitize_html(target.description))
         end
 
         if target.respond_to?(:text) && target.text.present?
-          parts << I18n.t("sensemaker.context.text", text: target.text)
+          parts << I18n.t("sensemaker.context.text", text: sanitize_html(target.text))
         end
 
         parts.concat(compile_class_specific_context(target))
