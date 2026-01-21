@@ -1778,6 +1778,9 @@ en:
         results: "results"
         analysing: "Analysing"
         review_context: "Review the additional context, then select a script to run."
+        groups: "Groups"
+        segment_by_option: "Segment by option"
+        no_free_text_to_analyse: "No free text to analyse for this question"
       job_show:
         details: "Details"
         job_id: "Job ID"
