@@ -52,9 +52,11 @@ en:
         all: "These are the proposals that have been submitted to the consul citizen participation platform. Citizens' proposals are an opportunity for neighbours and collectives to decide directly how they want their city to be, after getting sufficient support and submitting to a citizens' vote."
 
       poll:
-        questions_header: "This Poll is composed of %{count} question(s):"
+        questions_header: "This Poll is composed of %{count} question(s). The questions are as follows:"
         question_with_type: "  Q%{number} (%{type}): %{title}"
         question_option: "     - Option %{number}: %{title}"
+        question_option_with_votes: "      - Option %{number}: %{title} (%{votes} votes)"
+        combined_answers_note: "The attached comments include each author's answers. These are separated by the pipe \"|\" character and labelled as Q1, Q2, etc.."
         question_type:
           unique_choice: "Single choice"
           multiple_choice: "Multiple choice"

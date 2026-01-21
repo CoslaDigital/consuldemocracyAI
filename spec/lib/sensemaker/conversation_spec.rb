@@ -201,22 +201,15 @@ describe Sensemaker::Conversation do
       expect(conversation.comments.size).to eq(3)
     end
 
-    it "can compile context for Poll::Question with multi-choice options" do
+    it "raises error for Poll::Question with multi-choice options" do
       poll = create(:poll)
       question = create(:poll_question_unique, poll: poll, title: "Test Question")
-      option1 = create(:poll_question_option, question: question, title: "Option 1")
-      option2 = create(:poll_question_option, question: question, title: "Option 2")
-      create(:poll_answer, question: question, option: option1)
-      create(:poll_answer, question: question, option: option2)
+      create(:poll_question_option, question: question, title: "Option 1")
+      create(:poll_question_option, question: question, title: "Option 2")
 
       conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
-      context_result = conversation.compile_context
 
-      expect(context_result).to be_present
-      expect(context_result).to include("This Poll is composed of 1 question(s):")
-      expect(context_result).to include("Q1 (Single choice): Test Question")
-      expect(context_result).to include("     - Option 1: Option 1")
-      expect(context_result).to include("     - Option 2: Option 2")
+      expect { conversation.compile_context }.to raise_error(ArgumentError, /only supported for open-ended Poll::Question/)
     end
 
     it "can compile context for Poll::Question with open-ended question" do
@@ -229,7 +222,9 @@ describe Sensemaker::Conversation do
       context_result = conversation.compile_context
 
       expect(context_result).to be_present
-      expect(context_result).to include("This Poll is composed of 1 question(s):")
+      expect(context_result).to include(
+        "This Poll is composed of 1 question(s). The questions are as follows:"
+      )
       expect(context_result).to include("Q1 (Open ended): Open Question")
     end
 
@@ -388,8 +383,10 @@ describe Sensemaker::Conversation do
     end
 
     describe "handles Poll with standard comments" do
-      it "collects standard comments on the poll" do
+      it "collects standard comments on the poll when poll has only multi-choice questions" do
         poll = create(:poll)
+        question = create(:poll_question_unique, poll: poll)
+        create(:poll_question_option, question: question)
         comment1 = create(:comment, commentable: poll, user: user)
         comment2 = create(:comment, commentable: poll, user: user)
 
@@ -403,6 +400,8 @@ describe Sensemaker::Conversation do
 
       it "excludes hidden comments" do
         poll = create(:poll)
+        question = create(:poll_question_unique, poll: poll)
+        create(:poll_question_option, question: question)
         visible_comment = create(:comment, commentable: poll, user: user)
         create(:comment, commentable: poll, user: user, hidden_at: Time.current)
 
@@ -414,20 +413,117 @@ describe Sensemaker::Conversation do
       end
     end
 
-    describe "handles Poll::Question directly" do
-      it "handles single multi-choice question" do
+    describe "handles Poll with open-ended questions (combined answers)" do
+      it "combines all answers from a user across all questions" do
         poll = create(:poll)
-        question = create(:poll_question_unique, poll: poll, title: "Single Question")
-        option = create(:poll_question_option, question: question, title: "Yes")
-        create(:poll_answer, question: question, option: option)
+        user1 = create(:user)
+        user2 = create(:user)
 
-        conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+        question1 = create(:poll_question_unique, poll: poll, title: "What is your favourite cake?")
+        option1a = create(:poll_question_option, question: question1, title: "Chocolate")
+        option1b = create(:poll_question_option, question: question1, title: "Vanilla")
+        create(:poll_answer, question: question1, option: option1a, author: user1)
+        create(:poll_answer, question: question1, option: option1b, author: user2)
+
+        question2 = create(:poll_question_open, poll: poll, title: "What occasion should we have cake?")
+        create(:poll_answer, question: question2, answer: "Christmas and birthdays", option: nil,
+                             author: user1)
+        create(:poll_answer, question: question2, answer: "Every day", option: nil, author: user2)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(2)
+        user1_comment = comments.find { |c| c.user_id == user1.id }
+        user2_comment = comments.find { |c| c.user_id == user2.id }
+
+        expect(user1_comment.body).to eq("Q1: Chocolate | Q2: Christmas and birthdays")
+        expect(user2_comment.body).to eq("Q1: Vanilla | Q2: Every day")
+        expect(user1_comment.cached_votes_up).to eq(1)
+        expect(user1_comment.cached_votes_total).to eq(1)
+      end
+
+      it "handles multiple choice questions with multiple selections" do
+        poll = create(:poll)
+        user1 = create(:user)
+
+        question1 = create(:poll_question_multiple, poll: poll, title: "What times should we have cake?")
+        option1a = create(:poll_question_option, question: question1, title: "Morning")
+        option1b = create(:poll_question_option, question: question1, title: "Afternoon")
+        create(:poll_question_option, question: question1, title: "Evening")
+        create(:poll_answer, question: question1, option: option1a, author: user1)
+        create(:poll_answer, question: question1, option: option1b, author: user1)
+
+        question2 = create(:poll_question_open, poll: poll, title: "What other feedback?")
+        create(:poll_answer, question: question2, answer: "More cake please", option: nil, author: user1)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
         comments = conversation.comments
 
         expect(comments.size).to eq(1)
-        expect(comments.first.id).to eq(option.id)
-        expect(comments.first.body).to eq("I chose Yes")
-        expect(comments.first.user_id).to be(nil)
+        expect(comments.first.body).to eq("Q1: Morning, Afternoon | Q2: More cake please")
+      end
+
+      it "handles users who haven't answered all questions" do
+        poll = create(:poll)
+        user1 = create(:user)
+        user2 = create(:user)
+
+        question1 = create(:poll_question_unique, poll: poll, title: "Question 1")
+        option1 = create(:poll_question_option, question: question1, title: "Option A")
+        create(:poll_answer, question: question1, option: option1, author: user1)
+        create(:poll_answer, question: question1, option: option1, author: user2)
+
+        question2 = create(:poll_question_open, poll: poll, title: "Question 2")
+        create(:poll_answer, question: question2, answer: "Answer from user1", option: nil, author: user1)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(2)
+        user1_comment = comments.find { |c| c.user_id == user1.id }
+        user2_comment = comments.find { |c| c.user_id == user2.id }
+
+        expect(user1_comment.body).to eq("Q1: Option A | Q2: Answer from user1")
+        expect(user2_comment.body).to eq("Q1: Option A")
+      end
+
+      it "only includes users who have at least one answer" do
+        poll = create(:poll)
+        user_with_answer = create(:user)
+        create(:user)
+
+        question1 = create(:poll_question_open, poll: poll, title: "Question 1")
+        create(:poll_answer, question: question1, answer: "Some answer", option: nil,
+                             author: user_with_answer)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.user_id).to eq(user_with_answer.id)
+      end
+    end
+
+    describe "handles Poll::Question directly" do
+      it "raises an error for single choice question" do
+        poll = create(:poll)
+        question = create(:poll_question_unique, poll: poll, title: "Single Question")
+        create(:poll_question_option, question: question, title: "Yes")
+
+        conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+
+        expect { conversation.comments }.to raise_error(ArgumentError, /only supported for open-ended Poll::Question/)
+      end
+
+      it "raises an error for multiple choice question" do
+        poll = create(:poll)
+        question = create(:poll_question_multiple, poll: poll, title: "Multiple Question")
+        create(:poll_question_option, question: question, title: "Option A")
+
+        conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+
+        expect { conversation.comments }.to raise_error(ArgumentError, /only supported for open-ended Poll::Question/)
       end
 
       it "handles single open-ended question" do

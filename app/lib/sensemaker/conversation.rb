@@ -48,11 +48,57 @@ module Sensemaker
             user_id: proposal.author_id
           )
         end
+      elsif @target.is_a?(Poll) && @target.questions.any?(&:open?)
+        all_answers = @target.answers
+                             .includes(:author, :option, question: [:question_options, :votation_type])
+                             .group_by(&:author_id)
+        return [] if all_answers.empty?
+
+        all_answers.map do |user_id, user_answers|
+          answer_parts = []
+
+          @target.questions.each_with_index do |question, index|
+            question_answers = user_answers.select { |answer| answer.question_id == question.id }
+            next if question_answers.empty?
+
+            question_number = index + 1
+            formatted_answer = format_user_answer_for_question(question, question_answers)
+            answer_parts << "Q#{question_number}: #{formatted_answer}"
+          end
+
+          next if answer_parts.empty?
+
+          CommentLikeItem.new(
+            id: "combined_answers_#{user_id}",
+            body: answer_parts.join(" | "),
+            cached_votes_up: 1,
+            cached_votes_down: 0,
+            cached_votes_total: 1,
+            user_id: user_id
+          )
+        end.compact
       elsif @target.is_a?(Poll::Question)
         question = Poll::Question
                    .includes(:question_options, :votation_type, answers: :author, partial_results: :option)
                    .find(@target.id)
-        comments_for_poll_question(question)
+
+        unless question.open?
+          question_type = question.multiple? ? "multiple choice" : "single choice"
+          raise ArgumentError,
+                "Sensemaker analysis is only supported for open-ended Poll::Question. " \
+                "This question is #{question_type}."
+        end
+
+        question.answers.includes(:author).map do |answer|
+          CommentLikeItem.new(
+            id: "a_#{answer.id}",
+            body: answer.answer.to_s,
+            cached_votes_up: 1,
+            cached_votes_down: 0,
+            cached_votes_total: 1,
+            user_id: answer.author_id
+          )
+        end
       else
         @target.comments.includes(:user).where(hidden_at: nil)
       end
@@ -131,33 +177,14 @@ module Sensemaker
 
     private
 
-      def comments_for_poll_question(question)
-        is_multi_choice_poll = question.accepts_options? && question.question_options.any?
-        if is_multi_choice_poll
-          question.question_options.map do |option|
-            CommentLikeItem.new(
-              id: option.id,
-              body: "I chose #{option.title}",
-              cached_votes_up: option.total_votes,
-              cached_votes_down: 0,
-              cached_votes_total: option.total_votes,
-              user_id: nil
-            )
-          end
-        elsif question.open?
-          question.answers.includes(:author).map do |answer|
-            # TODO: Consider up / down votes on answers
-            CommentLikeItem.new(
-              id: "a_#{answer.id}",
-              body: answer.answer.to_s,
-              cached_votes_up: 1,
-              cached_votes_down: 0,
-              cached_votes_total: 1,
-              user_id: answer.author_id
-            )
-          end
+      def format_user_answer_for_question(question, user_answers)
+        if question.open?
+          user_answers.first.answer.to_s
+        elsif question.accepts_options? && question.question_options.any?
+          selected_options = user_answers.map { |answer| answer.option&.title }.compact
+          selected_options.join(", ")
         else
-          []
+          ""
         end
       end
 
@@ -238,11 +265,16 @@ module Sensemaker
                               title: question.title)
               if question.accepts_options? && question.question_options.any?
                 question.question_options.each_with_index do |question_option, opt_index|
-                  parts << I18n.t("sensemaker.context.poll.question_option",
+                  parts << I18n.t("sensemaker.context.poll.question_option_with_votes",
                                   number: opt_index + 1,
-                                  title: question_option.title)
+                                  title: question_option.title,
+                                  votes: question_option.total_votes)
                 end
               end
+            end
+
+            if target.questions.any?(&:open?)
+              parts << I18n.t("sensemaker.context.poll.combined_answers_note")
             end
           end
         when "Poll::Question"
