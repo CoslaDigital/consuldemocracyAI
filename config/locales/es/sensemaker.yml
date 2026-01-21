@@ -21,6 +21,7 @@ es:
         legislation/question: "Debate legislativo colaborativo"
         legislation/question_option: "Debate legislativo colaborativo segmentado por opción"
         poll: "Encuesta"
+        poll/question: "Pregunta de encuesta"
       proposal:
         votes: "Esta propuesta tiene %{total_votes} votos de los %{required_votes} necesarios para ser exitosa"
 
@@ -51,9 +52,20 @@ es:
         all: "Estas son las propuestas que se han presentado a la plataforma de participación ciudadana consul. Las propuestas ciudadanas son una oportunidad para que los vecinos y colectivos decidan directamente cómo quieren que sea su ciudad, después de obtener suficiente apoyo y someterse a una votación ciudadana."
 
       poll:
-        questions_header: "### Preguntas y Respuestas"
-        question_title: "#### P: %{title}"
-        question_option: "- %{title} (%{total_votes} respuestas)"
+        questions_header: "Esta Encuesta está compuesta de %{count} pregunta(s). Las preguntas son las siguientes:"
+        question_with_type: "  P%{number} (%{type}): %{title}"
+        question_option: "     - Opción %{number}: %{title}"
+        question_option_with_votes: "      - Opción %{number}: %{title} (%{votes} votos)"
+        combined_answers_note: "Los comentarios adjuntos incluyen las respuestas de cada autor. Estas están separadas por el carácter de barra vertical \"|\" y etiquetadas como P1, P2, etc.."
+        question_type:
+          unique_choice: "Elección única"
+          multiple_choice: "Elección múltiple"
+          open_ended: "Respuesta abierta"
+
+      poll_question:
+        question_title: "Pregunta: %{title}"
+        filter_note: "Nota: Este análisis se centra en la pregunta de la encuesta \"%{question_title}\"."
+        open_ended: "Esta es una pregunta de respuesta abierta con %{answers_count} respuestas de texto."
 
     analysis:
       title: "Análisis Sensemaker"
@@ -112,4 +124,3 @@ es:
       comments_analysed_label: "Comentarios analizados"
       report_description: "El informe contiene un análisis detallado de la conversación, incluyendo identificación de temas, categorización, y áreas de acuerdo y desacuerdo."
       view_report: "Ver informe"
-

@@ -45,7 +45,7 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
 
         unless process.proposals.empty?
           collection << {
-            title: "Proposals",
+            title: I18n.t("activerecord.models.legislation/proposal.other"),
             collection: process.proposals.map { |p| { title: result_title_for(p), object: p } }
           }
           @result_count += process.proposals.count
@@ -59,11 +59,11 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
             question_collection << { title: result_title_for(q), object: q }
             question_options = q.question_options.map { |qo| { title: result_title_for(qo), object: qo } }
             @result_count += question_options.size
-            question_collection << { title: "Segment by option",
+            question_collection << { title: I18n.t("admin.sensemaker.new.segment_by_option"),
                                      collection: question_options } unless question_options.empty?
           end
 
-          collection << { title: "Questions",
+          collection << { title: I18n.t("activerecord.models.legislation/questions.other"),
                           collection: question_collection } unless question_collection.empty?
         end
 
@@ -90,12 +90,43 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
         end
         unless group_entries.empty?
           @result_count += group_entries.size
-          collection << { title: "Groups", collection: group_entries }
+          collection << { title: I18n.t("admin.sensemaker.new.groups"), collection: group_entries }
         end
       end
 
       @search_results << {
-        title: "Budgets",
+        title: I18n.t("activerecord.models.budget.other"),
+        collection: collection
+      }
+    when "Poll"
+      scope = Poll.not_budget.includes(questions: :question_options)
+      if target_query.present?
+        polls = scope.search(target_query)
+      else
+        polls = scope.order(created_at: :desc).limit(limit)
+      end
+
+      collection = []
+      polls.each do |poll|
+        collection << { title: result_title_for(poll), object: poll }
+        @result_count += 1
+
+        question_entries = poll.questions.map do |q|
+          @result_count += 1
+          entry = { title: result_title_for(q), object: q }
+          entry = entry.merge({
+            disabled: I18n.t("admin.sensemaker.new.no_free_text_to_analyse")
+          }) unless q.open?
+          entry
+        end
+        unless question_entries.empty?
+          collection << { title: I18n.t("activerecord.models.legislation/questions.other"),
+                          collection: question_entries }
+        end
+      end
+
+      @search_results << {
+        title: I18n.t("activerecord.models.poll.other"),
         collection: collection
       }
     else
