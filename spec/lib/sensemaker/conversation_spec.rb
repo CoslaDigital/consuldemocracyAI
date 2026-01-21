@@ -5,22 +5,19 @@ describe Sensemaker::Conversation do
 
   describe "#compile_context" do
     it "can compile context for Poll" do
-      answer_one = create(:poll_answer)
-      answer_two = create(:poll_answer)
-      poll = answer_one.poll
-
-      expect(answer_one.persisted?).to be true
-      expect(answer_two.persisted?).to be true
+      poll = create(:poll)
       expect(poll.persisted?).to be true
+
+      3.times do
+        create(:comment, commentable: poll, user: user)
+      end
 
       conversation = Sensemaker::Conversation.new("Poll", poll.id)
       context_result = conversation.compile_context
 
       expect(context_result).to be_present
-      expect(context_result).to include("### Questions and Responses")
-      expect(context_result).to include("#### Q: #{poll.questions.first.title}")
-      expect(context_result).to include("- #{answer_one.option.title}")
-      expect(context_result).to include("- #{answer_two.option.title}")
+      expect(context_result).to include("- Comments: #{conversation.comments.size}")
+      expect(conversation.comments.size).to eq(3)
     end
 
     it "can compile context for Proposal" do
@@ -204,8 +201,40 @@ describe Sensemaker::Conversation do
       expect(conversation.comments.size).to eq(3)
     end
 
+    it "can compile context for Poll::Question with multi-choice options" do
+      poll = create(:poll)
+      question = create(:poll_question_unique, poll: poll, title: "Test Question")
+      option1 = create(:poll_question_option, question: question, title: "Option 1")
+      option2 = create(:poll_question_option, question: question, title: "Option 2")
+      create(:poll_answer, question: question, option: option1)
+      create(:poll_answer, question: question, option: option2)
+
+      conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to be_present
+      expect(context_result).to include("This Poll is composed of 1 question(s):")
+      expect(context_result).to include("Q1 (Single choice): Test Question")
+      expect(context_result).to include("     - Option 1: Option 1")
+      expect(context_result).to include("     - Option 2: Option 2")
+    end
+
+    it "can compile context for Poll::Question with open-ended question" do
+      poll = create(:poll)
+      question = create(:poll_question_open, poll: poll, title: "Open Question")
+      create(:poll_answer, question: question, answer: "First answer", option: nil)
+      create(:poll_answer, question: question, answer: "Second answer", option: nil)
+
+      conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+      context_result = conversation.compile_context
+
+      expect(context_result).to be_present
+      expect(context_result).to include("This Poll is composed of 1 question(s):")
+      expect(context_result).to include("Q1 (Open ended): Open Question")
+    end
+
     it "can compile context for other target types" do
-      target_types = Sensemaker::Job::ANALYSABLE_TYPES - ["Poll", "Legislation::Question",
+      target_types = Sensemaker::Job::ANALYSABLE_TYPES - ["Poll", "Poll::Question", "Legislation::Question",
                                                           "Legislation::Proposal", "Debate",
                                                           "Legislation::QuestionOption",
                                                           "Budget", "Budget::Group"]
@@ -355,6 +384,63 @@ describe Sensemaker::Conversation do
         expect(comments.first.body).to include("Group investment description.")
         expect(comments.first.body).not_to include("<p>")
         expect(comments.first.body).not_to include("<strong>")
+      end
+    end
+
+    describe "handles Poll with standard comments" do
+      it "collects standard comments on the poll" do
+        poll = create(:poll)
+        comment1 = create(:comment, commentable: poll, user: user)
+        comment2 = create(:comment, commentable: poll, user: user)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(2)
+        expect(comments.map(&:id)).to contain_exactly(comment1.id, comment2.id)
+        expect(comments.map(&:body)).to contain_exactly(comment1.body, comment2.body)
+      end
+
+      it "excludes hidden comments" do
+        poll = create(:poll)
+        visible_comment = create(:comment, commentable: poll, user: user)
+        create(:comment, commentable: poll, user: user, hidden_at: Time.current)
+
+        conversation = Sensemaker::Conversation.new("Poll", poll.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.id).to eq(visible_comment.id)
+      end
+    end
+
+    describe "handles Poll::Question directly" do
+      it "handles single multi-choice question" do
+        poll = create(:poll)
+        question = create(:poll_question_unique, poll: poll, title: "Single Question")
+        option = create(:poll_question_option, question: question, title: "Yes")
+        create(:poll_answer, question: question, option: option)
+
+        conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.id).to eq(option.id)
+        expect(comments.first.body).to eq("I chose Yes")
+        expect(comments.first.user_id).to be(nil)
+      end
+
+      it "handles single open-ended question" do
+        poll = create(:poll)
+        question = create(:poll_question_open, poll: poll, title: "Open Question")
+        answer = create(:poll_answer, question: question, answer: "My answer", option: nil)
+
+        conversation = Sensemaker::Conversation.new("Poll::Question", question.id)
+        comments = conversation.comments
+
+        expect(comments.size).to eq(1)
+        expect(comments.first.id).to eq("a_#{answer.id}")
+        expect(comments.first.body).to eq("My answer")
       end
     end
   end
