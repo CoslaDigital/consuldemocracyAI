@@ -1826,6 +1826,9 @@ es:
         results: "resultados"
         analysing: "Analizando"
         review_context: "Revisa el contexto adicional, luego selecciona un script para ejecutar."
+        groups: "Grupos"
+        segment_by_option: "Segmentar por opción"
+        no_free_text_to_analyse: "No hay texto libre para analizar en esta pregunta"
       job_show:
         details: "Detalles"
         job_id: "ID del trabajo"
