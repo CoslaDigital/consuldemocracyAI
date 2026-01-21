@@ -6,6 +6,7 @@ module Sensemaker
       "Debate",
       "Proposal",
       "Poll",
+      "Poll::Question",
       "Topic",
       "Legislation::Question",
       "Legislation::Proposal",

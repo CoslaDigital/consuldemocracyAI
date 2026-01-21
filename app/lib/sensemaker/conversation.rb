@@ -48,6 +48,57 @@ module Sensemaker
             user_id: proposal.author_id
           )
         end
+      elsif @target.is_a?(Poll) && @target.questions.any?(&:open?)
+        all_answers = @target.answers
+                             .includes(:author, :option, question: [:question_options, :votation_type])
+                             .group_by(&:author_id)
+        return [] if all_answers.empty?
+
+        all_answers.map do |user_id, user_answers|
+          answer_parts = []
+
+          @target.questions.each_with_index do |question, index|
+            question_answers = user_answers.select { |answer| answer.question_id == question.id }
+            next if question_answers.empty?
+
+            question_number = index + 1
+            formatted_answer = format_user_answer_for_question(question, question_answers)
+            answer_parts << "Q#{question_number}: #{formatted_answer}"
+          end
+
+          next if answer_parts.empty?
+
+          CommentLikeItem.new(
+            id: "combined_answers_#{user_id}",
+            body: answer_parts.join(" | "),
+            cached_votes_up: 1,
+            cached_votes_down: 0,
+            cached_votes_total: 1,
+            user_id: user_id
+          )
+        end.compact
+      elsif @target.is_a?(Poll::Question)
+        question = Poll::Question
+                   .includes(:question_options, :votation_type, answers: :author, partial_results: :option)
+                   .find(@target.id)
+
+        unless question.open?
+          question_type = question.multiple? ? "multiple choice" : "single choice"
+          raise ArgumentError,
+                "Sensemaker analysis is only supported for open-ended Poll::Question. " \
+                "This question is #{question_type}."
+        end
+
+        question.answers.includes(:author).map do |answer|
+          CommentLikeItem.new(
+            id: "a_#{answer.id}",
+            body: answer.answer.to_s,
+            cached_votes_up: 1,
+            cached_votes_down: 0,
+            cached_votes_total: 1,
+            user_id: answer.author_id
+          )
+        end
       else
         @target.comments.includes(:user).where(hidden_at: nil)
       end
@@ -59,6 +110,10 @@ module Sensemaker
                                                                  comments_count: comments.size)
         filter_note = I18n.t("sensemaker.context.question_option.filter_note", option_value: @target.value)
         "#{question_context}\n\n#{filter_note}"
+      elsif @target.is_a?(Poll::Question)
+        poll_context = self.class.compile_context_for_target(@target.poll, comments_count: comments.size)
+        poll_note = I18n.t("sensemaker.context.poll_question.filter_note", question_title: @target.title)
+        "#{poll_context}\n\n#{poll_note}"
       elsif @analysable_type == "Proposal" && @analysable_id.nil?
         I18n.t("sensemaker.context.proposals.all")
       else
@@ -67,7 +122,14 @@ module Sensemaker
     end
 
     def target_label(format: :short)
-      if @target.is_a?(Class)
+      if @target.is_a?(Poll::Question)
+        case format
+        when :full
+          "Poll::Question #{@target.id}: #{@target.title}"
+        else
+          @target.title
+        end
+      elsif @target.is_a?(Class)
         case format
         when :name_only, :full
           @target.name
@@ -114,6 +176,17 @@ module Sensemaker
     end
 
     private
+
+      def format_user_answer_for_question(question, user_answers)
+        if question.open?
+          user_answers.first.answer.to_s
+        elsif question.accepts_options? && question.question_options.any?
+          selected_options = user_answers.map { |answer| answer.option&.title }.compact
+          selected_options.join(", ")
+        else
+          ""
+        end
+      end
 
       def self.sanitize_html(text)
         return "" if text.blank?
@@ -175,14 +248,46 @@ module Sensemaker
 
         case target.class.name
         when "Poll"
-          parts << I18n.t("sensemaker.context.poll.questions_header") if target.questions.any?
-          target.questions.each do |question|
-            parts << I18n.t("sensemaker.context.poll.question_title", title: question.title)
-            question.question_options.each do |question_option|
+          if target.questions.any?
+            parts << I18n.t("sensemaker.context.poll.questions_header",
+                            count: target.questions.count)
+            target.questions.each_with_index do |question, index|
+              question_type_label = if question.open?
+                                      I18n.t("sensemaker.context.poll.question_type.open_ended")
+                                    elsif question.multiple?
+                                      I18n.t("sensemaker.context.poll.question_type.multiple_choice")
+                                    else
+                                      I18n.t("sensemaker.context.poll.question_type.unique_choice")
+                                    end
+              parts << I18n.t("sensemaker.context.poll.question_with_type",
+                              number: index + 1,
+                              type: question_type_label,
+                              title: question.title)
+              if question.accepts_options? && question.question_options.any?
+                question.question_options.each_with_index do |question_option, opt_index|
+                  parts << I18n.t("sensemaker.context.poll.question_option_with_votes",
+                                  number: opt_index + 1,
+                                  title: question_option.title,
+                                  votes: question_option.total_votes)
+                end
+              end
+            end
+
+            if target.questions.any?(&:open?)
+              parts << I18n.t("sensemaker.context.poll.combined_answers_note")
+            end
+          end
+        when "Poll::Question"
+          parts << I18n.t("sensemaker.context.poll_question.question_title", title: target.title)
+          if target.accepts_options? && target.question_options.any?
+            target.question_options.each do |question_option|
               parts << I18n.t("sensemaker.context.poll.question_option",
                               title: question_option.title,
                               total_votes: question_option.total_votes)
             end
+          elsif target.open?
+            parts << I18n.t("sensemaker.context.poll_question.open_ended",
+                            answers_count: target.answers.count)
           end
         when "Proposal"
           parts << I18n.t("sensemaker.context.proposal.votes",

@@ -98,6 +98,34 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
         title: "Budgets",
         collection: collection
       }
+    when "Poll"
+      scope = Poll.not_budget.includes(questions: :question_options)
+      if target_query.present?
+        polls = scope.search(target_query)
+      else
+        polls = scope.order(created_at: :desc).limit(limit)
+      end
+
+      collection = []
+      polls.each do |poll|
+        collection << { title: result_title_for(poll), object: poll }
+        @result_count += 1
+
+        question_entries = poll.questions.map do |q|
+          @result_count += 1
+          entry = { title: result_title_for(q), object: q }
+          entry = entry.merge({ disabled: "No free text to analyse for this question" }) unless q.open?
+          entry
+        end
+        unless question_entries.empty?
+          collection << { title: "Questions", collection: question_entries }
+        end
+      end
+
+      @search_results << {
+        title: "Polls",
+        collection: collection
+      }
     else
       if target_query.present?
         results = query_type.constantize.search(target_query)
