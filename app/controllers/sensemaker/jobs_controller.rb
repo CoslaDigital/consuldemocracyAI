@@ -16,8 +16,8 @@ class Sensemaker::JobsController < ApplicationController
   def index
     if params[:resource_type].present? && params[:resource_id].present?
       resource_type = map_resource_type_to_model(params[:resource_type])
-      resource = resource_type.find(params[:resource_id])
-      @parent_resource = load_parent_resource_for(resource)
+      @resource = resource_type.find(params[:resource_id])
+      @parent_resource = load_parent_resource_for(@resource)
       @sensemaker_jobs = Sensemaker::Job.published
                                         .where(analysable_type: resource_type.name,
                                                analysable_id: params[:resource_id])
@@ -58,10 +58,14 @@ class Sensemaker::JobsController < ApplicationController
     authorize! :read, job
 
     if job.has_outputs?
-      send_file job.persisted_output,
-                filename: File.basename(job.persisted_output),
+      report_file_path = job.persisted_output
+      if job.script.eql?("runner.ts")
+        report_file_path = job.output_artifact_paths.select { |path| path.include?("html") }.first
+      end
+      send_file report_file_path,
+                filename: File.basename(report_file_path),
                 disposition: "inline",
-                type: determine_content_type(job.persisted_output)
+                type: determine_content_type(report_file_path)
     else
       head :not_found
     end

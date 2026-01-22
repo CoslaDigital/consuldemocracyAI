@@ -1,4 +1,4 @@
-class Sensemaker::ReportIndexComponent < ApplicationComponent
+class Sensemaker::GroupedJobIndexComponent < ApplicationComponent
   include Sensemaker::ReportComponentHelpers
 
   attr_reader :jobs, :parent_resource

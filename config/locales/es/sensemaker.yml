@@ -104,6 +104,19 @@ es:
         poll: "Encuestas"
         debate: "Debates"
 
+    job_index:
+      title: "Análisis Sensemaker"
+      title_with_parent: "Análisis Sensemaker para %{parent_name}"
+      title_with_resource: "Análisis Sensemaker: %{resource_name}"
+      parent_resource_prefix: "en"
+      script_type:
+        report: "Informe"
+        summary: "Resumen"
+      view_job: "Ver Análisis"
+      view_report: "Ver Informe"
+      view_summary: "Ver Resumen"
+      completed_at: "Completado"
+
     report_view:
       title: "Informe Sensemaker"
       intro_text: "Aquí puedes encontrar la salida de un análisis producido usando %{link}."
