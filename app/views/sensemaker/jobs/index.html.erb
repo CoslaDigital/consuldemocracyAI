@@ -2,6 +2,10 @@
 
 <div class="row">
   <div class="small-12 column">
-    <%= render Sensemaker::ReportIndexComponent.new(jobs: @sensemaker_jobs, parent_resource: @parent_resource) %>
+    <% if (["budgets_index", "processes_index"].include?(action_name)) %>
+      <%= render Sensemaker::GroupedJobIndexComponent.new(jobs: @sensemaker_jobs, parent_resource: @parent_resource) %>
+    <% else %>
+      <%= render Sensemaker::JobIndexComponent.new(jobs: @sensemaker_jobs, parent_resource: @parent_resource, resource: @resource) %>
+    <% end %>
   </div>
 </div>

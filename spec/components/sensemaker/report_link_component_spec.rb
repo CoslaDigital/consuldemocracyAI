@@ -12,19 +12,24 @@ describe Sensemaker::ReportLinkComponent do
 
   describe "#render?" do
     context "when sensemaker feature is enabled and job exists" do
+      let(:persisted_output) { Rails.root.join("tmp", "test-report.html").to_s }
+
       before do
+        FileUtils.mkdir_p(File.dirname(persisted_output))
+        File.write(persisted_output, "<html><body>Test Report</body></html>")
         job = create(:sensemaker_job,
                      analysable_type: "Debate",
                      analysable_id: debate.id,
+                     script: "single-html-build.js",
                      finished_at: Time.current,
-                     persisted_output: Rails.root.join("tmp", "test-report.html").to_s)
-        FileUtils.mkdir_p(File.dirname(job.persisted_output))
-        File.write(job.persisted_output, "<html><body>Test Report</body></html>")
+                     error: nil,
+                     persisted_output: persisted_output,
+                     published: false)
+        job.update!(published: true) # Now update with validation - should pass since file exists
       end
 
       after do
-        test_file = Rails.root.join("tmp", "test-report.html")
-        FileUtils.rm_f(test_file)
+        FileUtils.rm_f(persisted_output)
       end
 
       it "returns true" do
@@ -62,20 +67,32 @@ describe Sensemaker::ReportLinkComponent do
 
   describe "rendering" do
     context "when report is available" do
+      let(:persisted_output) { Rails.root.join("tmp", "test-report.html").to_s }
+
       before do
+        FileUtils.mkdir_p(File.dirname(persisted_output))
+        File.write(persisted_output, "<html><body>Test Report</body></html>")
         job = create(:sensemaker_job,
                      analysable_type: "Debate",
                      analysable_id: debate.id,
+                     script: "single-html-build.js",
                      finished_at: Time.current,
-                     persisted_output: Rails.root.join("tmp", "test-report.html").to_s)
-        FileUtils.mkdir_p(File.dirname(job.persisted_output))
-        File.write(job.persisted_output, "<html><body>Test Report</body></html>")
+                     error: nil,
+                     persisted_output: persisted_output,
+                     published: false)
+        job.update!(published: true) # Now update with validation - should pass since file exists
+      end
+
+      after do
+        FileUtils.rm_f(persisted_output)
       end
 
       it "renders the view report link" do
         render_inline component
 
-        expect(page).to have_link("View analysis", href: sensemaker_job_path(Sensemaker::Job.last.id))
+        expect(page).to have_link("View analysis",
+                                  href: sensemaker_resource_jobs_path(resource_type: "debates",
+                                                                      resource_id: debate.id))
       end
     end
 

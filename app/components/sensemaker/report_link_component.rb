@@ -1,33 +1,31 @@
 class Sensemaker::ReportLinkComponent < ApplicationComponent
-  attr_reader :analysable_resource, :link_to_index
+  attr_reader :analysable_resource
 
-  def initialize(analysable_resource, link_to_index: false)
+  def initialize(analysable_resource)
     @analysable_resource = analysable_resource
-    @link_to_index = link_to_index
   end
 
   def render?
     feature?(:sensemaker) && report_available?
   end
 
-  def report_url
-    return nil unless latest_successful_job&.has_outputs?
-
-    sensemaker_job_path(latest_successful_job.id)
-  end
-
   def report_available?
-    if link_to_index
-      case analysable_resource
-      when Budget
-        Sensemaker::Job.for_budget(analysable_resource).exists?
-      when Legislation::Process
-        Sensemaker::Job.for_process(analysable_resource).exists?
-      else
-        false
-      end
+    case analysable_resource
+    when Budget
+      Sensemaker::Job.for_budget(analysable_resource).exists?
+    when Legislation::Process
+      Sensemaker::Job.for_process(analysable_resource).exists?
+    when Budget::Group
+      Sensemaker::Job.for_budget(analysable_resource.budget).exists?
     else
-      latest_successful_job.present? && latest_successful_job.has_outputs?
+      if analysable_resource.class.name == "Proposal" && analysable_resource.id.nil?
+        Sensemaker::Job.published.where(analysable_type: "Proposal", analysable_id: nil).exists?
+      else
+        Sensemaker::Job.published
+                       .where(analysable_type: analysable_resource.class.name,
+                              analysable_id: analysable_resource.id)
+                       .exists?
+      end
     end
   end
 
@@ -45,23 +43,50 @@ class Sensemaker::ReportLinkComponent < ApplicationComponent
   end
 
   def link_to_analysis
-    if link_to_index
-      link_to view_report_text, [:sensemaker, analysable_resource, :jobs], class: "button hollow expanded",
-                                                                           target: "_blank"
-    else
-      link_to view_report_text, report_url, class: "button hollow expanded", target: "_blank"
-    end
+    link_to view_report_text, jobs_index_path_for(analysable_resource), class: "button hollow expanded",
+                                                                        target: "_blank"
   end
 
   private
 
-    def latest_successful_job
-      @latest_successful_job ||= Sensemaker::Job
-                                 .where(analysable_type: analysable_resource.class.name,
-                                        analysable_id: analysable_resource.id)
-                                 .successful
-                                 .published
-                                 .order(finished_at: :desc)
-                                 .first
+    def jobs_index_path_for(resource)
+      case resource
+      when Budget
+        sensemaker_budget_jobs_path(resource.id)
+      when Legislation::Process
+        sensemaker_legislation_process_jobs_path(resource.id)
+      when Budget::Group
+        sensemaker_budget_jobs_path(resource.budget_id)
+      else
+        if resource.class.name == "Proposal" && resource.id.nil?
+          sensemaker_all_proposals_jobs_path
+        else
+          resource_type = resource_type_for_route(resource.class)
+          sensemaker_resource_jobs_path(resource_type: resource_type, resource_id: resource.id)
+        end
+      end
+    end
+
+    def resource_type_for_route(model_class)
+      case model_class.name
+      when "Debate"
+        "debates"
+      when "Proposal"
+        "proposals"
+      when "Poll"
+        "polls"
+      when "Poll::Question"
+        "poll_questions"
+      when "Legislation::Question"
+        "legislation_questions"
+      when "Legislation::Proposal"
+        "legislation_proposals"
+      when "Legislation::QuestionOption"
+        "legislation_question_options"
+      when "Topic"
+        "topics"
+      else
+        raise ArgumentError, "Unknown resource type for route: #{model_class.name}"
+      end
     end
 end

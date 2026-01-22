@@ -104,6 +104,19 @@ en:
         poll: "Polls"
         debate: "Debates"
 
+    job_index:
+      title: "Sensemaker Analyses"
+      title_with_parent: "Sensemaker Analysis for %{parent_name}"
+      title_with_resource: "Sensemaker Analysis: %{resource_name}"
+      parent_resource_prefix: "in"
+      script_type:
+        report: "Report"
+        summary: "Summary"
+      view_job: "View Analysis"
+      view_report: "View Report"
+      view_summary: "View Summary"
+      completed_at: "Completed"
+
     report_view:
       title: "Sensemaker Report"
       intro_text: "Here you can find the output of an analysis produced using %{link}."

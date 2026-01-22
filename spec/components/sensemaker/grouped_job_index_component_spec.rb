@@ -1,11 +1,11 @@
 require "rails_helper"
 
-describe Sensemaker::ReportIndexComponent do
+describe Sensemaker::GroupedJobIndexComponent do
   include Rails.application.routes.url_helpers
 
   let(:debate) { create(:debate, title: "Test Debate") }
   let(:jobs) { [] }
-  let(:component) { Sensemaker::ReportIndexComponent.new(jobs: jobs, parent_resource: parent_resource) }
+  let(:component) { Sensemaker::GroupedJobIndexComponent.new(jobs: jobs, parent_resource: parent_resource) }
   let(:parent_resource) { nil }
 
   before do
