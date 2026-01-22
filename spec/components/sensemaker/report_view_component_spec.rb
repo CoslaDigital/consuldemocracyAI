@@ -10,15 +10,30 @@ describe Sensemaker::ReportViewComponent do
     Setting["feature.sensemaker"] = true
   end
 
+  def create_publishable_job_with_output(attributes = {})
+    job = create(:sensemaker_job, :publishable, attributes)
+    output_path = job.default_output_path
+    FileUtils.mkdir_p(File.dirname(output_path))
+    File.write(output_path, "<html><body>Test Report</body></html>")
+    job.update!(published: true)
+    job
+  end
+
+  after do
+    if defined?(sensemaker_job) && sensemaker_job&.default_output_path &&
+       File.exist?(sensemaker_job.default_output_path)
+      FileUtils.rm_f(sensemaker_job.default_output_path)
+    end
+  end
+
   describe "rendering explanatory text" do
     context "when analysable is a Poll" do
       let(:poll) { create(:poll, name: "Test Poll") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Poll",
-               analysable_id: poll.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Poll",
+          analysable_id: poll.id
+        )
       end
 
       it "renders explanatory text with linked poll name" do
@@ -33,11 +48,10 @@ describe Sensemaker::ReportViewComponent do
     context "when analysable is a Debate" do
       let(:debate) { create(:debate, title: "Test Debate") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Debate",
-               analysable_id: debate.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Debate",
+          analysable_id: debate.id
+        )
       end
 
       it "renders explanatory text with linked debate title" do
@@ -52,11 +66,10 @@ describe Sensemaker::ReportViewComponent do
     context "when analysable is a Proposal" do
       let(:proposal) { create(:proposal, title: "Test Proposal") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Proposal",
-               analysable_id: proposal.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Proposal",
+          analysable_id: proposal.id
+        )
       end
 
       it "renders explanatory text with linked proposal title" do
@@ -72,11 +85,10 @@ describe Sensemaker::ReportViewComponent do
       let(:process) { create(:legislation_process, title: "Test Process") }
       let(:question) { create(:legislation_question, process: process, title: "Test Question") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Legislation::Question",
-               analysable_id: question.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Legislation::Question",
+          analysable_id: question.id
+        )
       end
 
       it "renders explanatory text with linked question title" do
@@ -93,11 +105,10 @@ describe Sensemaker::ReportViewComponent do
       let(:question) { create(:legislation_question, process: process, title: "Test Question") }
       let(:question_option) { create(:legislation_question_option, question: question, value: "Option A") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Legislation::QuestionOption",
-               analysable_id: question_option.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Legislation::QuestionOption",
+          analysable_id: question_option.id
+        )
       end
 
       it "renders explanatory text with linked question title and option value" do
@@ -114,11 +125,10 @@ describe Sensemaker::ReportViewComponent do
     context "when analysable is a Budget" do
       let(:budget) { create(:budget, name: "Test Budget") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Budget",
-               analysable_id: budget.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Budget",
+          analysable_id: budget.id
+        )
       end
 
       it "renders explanatory text with linked budget name" do
@@ -134,11 +144,10 @@ describe Sensemaker::ReportViewComponent do
       let(:budget) { create(:budget, name: "Test Budget") }
       let(:budget_group) { create(:budget_group, budget: budget, name: "Test Group") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Budget::Group",
-               analysable_id: budget_group.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Budget::Group",
+          analysable_id: budget_group.id
+        )
       end
 
       it "renders explanatory text with linked budget name (not group)" do
@@ -154,11 +163,10 @@ describe Sensemaker::ReportViewComponent do
       let(:process) { create(:legislation_process, title: "Test Process") }
       let(:proposal) { create(:legislation_proposal, process: process, title: "Test Proposal") }
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Legislation::Proposal",
-               analysable_id: proposal.id,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Legislation::Proposal",
+          analysable_id: proposal.id
+        )
       end
 
       it "renders explanatory text with linked proposal title" do
@@ -172,11 +180,10 @@ describe Sensemaker::ReportViewComponent do
 
     context "when analysable is All Proposals (nil analysable_id)" do
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Proposal",
-               analysable_id: nil,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Proposal",
+          analysable_id: nil
+        )
       end
 
       it "renders explanatory text without link" do
@@ -189,11 +196,10 @@ describe Sensemaker::ReportViewComponent do
 
     context "when analysable is missing" do
       let(:sensemaker_job) do
-        create(:sensemaker_job,
-               analysable_type: "Debate",
-               analysable_id: 99999,
-               finished_at: Time.current,
-               published: true)
+        create_publishable_job_with_output(
+          analysable_type: "Debate",
+          analysable_id: 99999
+        )
       end
 
       before do

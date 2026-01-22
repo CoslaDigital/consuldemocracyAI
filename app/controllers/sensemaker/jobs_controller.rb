@@ -14,15 +14,43 @@ class Sensemaker::JobsController < ApplicationController
   end
 
   def index
-    if params[:process_id].present?
-      @parent_resource = Legislation::Process.find(params[:process_id])
-      @sensemaker_jobs = Sensemaker::Job.published.for_process(@parent_resource).order(finished_at: :desc)
-    elsif params[:budget_id].present?
-      @parent_resource = Budget.find(params[:budget_id])
-      @sensemaker_jobs = Sensemaker::Job.published.for_budget(@parent_resource).order(finished_at: :desc)
+    if params[:resource_type].present? && params[:resource_id].present?
+      resource_type = map_resource_type_to_model(params[:resource_type])
+      resource = resource_type.find(params[:resource_id])
+      @parent_resource = load_parent_resource_for(resource)
+      @sensemaker_jobs = Sensemaker::Job.published
+                                        .where(analysable_type: resource_type.name,
+                                               analysable_id: params[:resource_id])
+                                        .order(finished_at: :desc)
     else
       head :not_found
     end
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
+  end
+
+  def all_proposals_index
+    @parent_resource = nil
+    @sensemaker_jobs = Sensemaker::Job.published
+                                      .where(analysable_type: "Proposal", analysable_id: nil)
+                                      .order(finished_at: :desc)
+    render :index
+  end
+
+  def budgets_index
+    @parent_resource = Budget.find(params[:budget_id])
+    @sensemaker_jobs = Sensemaker::Job.published.for_budget(@parent_resource).order(finished_at: :desc)
+    render :index
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
+  end
+
+  def processes_index
+    @parent_resource = Legislation::Process.find(params[:process_id])
+    @sensemaker_jobs = Sensemaker::Job.published.for_process(@parent_resource).order(finished_at: :desc)
+    render :index
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
   end
 
   def serve_report
@@ -42,6 +70,42 @@ class Sensemaker::JobsController < ApplicationController
   end
 
   private
+
+    def map_resource_type_to_model(resource_type)
+      case resource_type
+      when "debates"
+        Debate
+      when "proposals"
+        Proposal
+      when "polls"
+        Poll
+      when "topics"
+        Topic
+      when "poll_questions"
+        Poll::Question
+      when "legislation_questions"
+        Legislation::Question
+      when "legislation_proposals"
+        Legislation::Proposal
+      when "legislation_question_options"
+        Legislation::QuestionOption
+      else
+        raise ArgumentError, "Unknown resource type: #{resource_type}"
+      end
+    end
+
+    def load_parent_resource_for(resource)
+      case resource
+      when Poll::Question
+        resource.poll
+      when Legislation::Question, Legislation::Proposal
+        resource.process
+      when Legislation::QuestionOption
+        resource.question.process
+      else
+        nil
+      end
+    end
 
     def determine_content_type(file_path)
       case File.extname(file_path).downcase
