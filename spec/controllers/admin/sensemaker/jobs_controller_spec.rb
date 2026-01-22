@@ -362,8 +362,8 @@ describe Admin::Sensemaker::JobsController do
       end
     end
 
-    context "when job script is not single-html-build.js" do
-      let(:wrong_script_job) do
+    context "when job script is not publishable" do
+      let(:non_publishable_job) do
         output_path = Rails.root.join("tmp", "test-report-#{SecureRandom.hex}.html").to_s
         FileUtils.mkdir_p(File.dirname(output_path))
         File.write(output_path, "<html><body>Test Report</body></html>")
@@ -381,22 +381,75 @@ describe Admin::Sensemaker::JobsController do
       end
 
       after do
-        if wrong_script_job&.persisted_output.present?
-          FileUtils.rm_f(wrong_script_job.persisted_output)
+        if non_publishable_job&.persisted_output.present?
+          FileUtils.rm_f(non_publishable_job.persisted_output)
         end
       end
 
-      it "allows publishing regardless of script type" do
-        patch :publish, params: { id: wrong_script_job.id }
+      it "does not publish the job" do
+        patch :publish, params: { id: non_publishable_job.id }
 
-        wrong_script_job.reload
-        expect(wrong_script_job.published).to be true
+        non_publishable_job.reload
+        expect(non_publishable_job.published).to be false
+      end
+
+      it "redirects with alert message" do
+        patch :publish, params: { id: non_publishable_job.id }
+
+        expect(response).to redirect_to(admin_sensemaker_job_path(non_publishable_job))
+        expect(flash[:alert]).to be_present
+      end
+    end
+
+    context "when job script is runner.ts" do
+      let(:runner_job) do
+        data_folder = Sensemaker::Paths.sensemaker_data_folder
+        base_path = File.join(data_folder, "output-#{SecureRandom.hex}")
+        output_files = [
+          "#{base_path}-summary.json",
+          "#{base_path}-summary.html",
+          "#{base_path}-summary.md",
+          "#{base_path}-summaryAndSource.csv"
+        ]
+
+        FileUtils.mkdir_p(File.dirname(base_path))
+        output_files.each { |file| File.write(file, "test content") }
+
+        create(:sensemaker_job,
+               user: admin,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               script: "runner.ts",
+               started_at: 1.hour.ago,
+               finished_at: Time.current,
+               error: nil,
+               published: false,
+               persisted_output: base_path)
+      end
+
+      after do
+        if runner_job&.persisted_output.present?
+          base_path = runner_job.persisted_output
+          [
+            "#{base_path}-summary.json",
+            "#{base_path}-summary.html",
+            "#{base_path}-summary.md",
+            "#{base_path}-summaryAndSource.csv"
+          ].each { |file| FileUtils.rm_f(file) }
+        end
+      end
+
+      it "publishes the job" do
+        patch :publish, params: { id: runner_job.id }
+
+        runner_job.reload
+        expect(runner_job.published).to be true
       end
 
       it "redirects to job show page with success notice" do
-        patch :publish, params: { id: wrong_script_job.id }
+        patch :publish, params: { id: runner_job.id }
 
-        expect(response).to redirect_to(admin_sensemaker_job_path(wrong_script_job))
+        expect(response).to redirect_to(admin_sensemaker_job_path(runner_job))
         expect(flash[:notice]).to be_present
       end
     end
