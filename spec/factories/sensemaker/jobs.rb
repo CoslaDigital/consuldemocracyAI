@@ -11,6 +11,7 @@ FactoryBot.define do
     published { false }
 
     trait :unpublished do
+      script { "runner.ts" }
       published { false }
     end
 
