@@ -240,15 +240,13 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
   def publish
     @sensemaker_job = Sensemaker::Job.find(params[:id])
 
-    unless @sensemaker_job.finished? && !@sensemaker_job.errored? && @sensemaker_job.has_outputs?
+    if @sensemaker_job.update(published: true)
+      redirect_to admin_sensemaker_job_path(@sensemaker_job),
+                  notice: I18n.t("admin.sensemaker.notice.published")
+    else
       redirect_to admin_sensemaker_job_path(@sensemaker_job),
                   alert: I18n.t("admin.sensemaker.notice.cannot_publish")
-      return
     end
-
-    @sensemaker_job.update!(published: true)
-    redirect_to admin_sensemaker_job_path(@sensemaker_job),
-                notice: I18n.t("admin.sensemaker.notice.published")
   end
 
   def unpublish
