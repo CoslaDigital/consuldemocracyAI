@@ -175,10 +175,6 @@ module Sensemaker
       PUBLISHABLE_SCRIPTS.include?(script) && finished? && !errored? && has_outputs?
     end
 
-    def publishable?
-      PUBLISHABLE_SCRIPTS.include?(script) && finished? && !errored? && has_outputs?
-    end
-
     def self.for_budget(budget)
       group_subquery = budget.groups.select(:id)
       published.where(analysable_type: "Budget", analysable_id: budget.id).or(
