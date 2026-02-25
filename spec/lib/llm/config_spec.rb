@@ -2,11 +2,11 @@ require "rails_helper"
 
 describe Llm::Config do
   describe ".context" do
-    before { stub_secrets(llm: { openai_api_key: "1234" }) }
-
     let(:config) { instance_double(RubyLLM::Configuration) }
     let(:context_double) { double("RubyLLM::Context", config: config) }
+
     before do
+      stub_secrets(llm: { openai_api_key: "1234" })
       allow(config).to receive(:openai_api_key=)
       expect(RubyLLM).to receive(:context).and_yield(config).and_return(context_double)
     end
