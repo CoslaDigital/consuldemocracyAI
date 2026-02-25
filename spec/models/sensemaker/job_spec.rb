@@ -188,6 +188,48 @@ describe Sensemaker::Job do
       end
     end
 
+    describe "#relative_output_path" do
+      let(:relative_data_folder) { "tmp/sensemaker_test_folder/data" }
+
+      before do
+        allow(Sensemaker::Paths).to receive(:sensemaker_relative_data_folder).and_return(relative_data_folder)
+      end
+
+      it "returns a path relative to Rails.root (no leading slash)" do
+        job.script = "categorization_runner.ts"
+        path = job.relative_output_path
+        expect(path).to eq("#{relative_data_folder}/categorization-output-#{job.id}.csv")
+        expect(path).not_to start_with("/")
+      end
+
+      it "returns the correct relative path for each script type" do
+        job.script = "advanced_runner.ts"
+        expect(job.relative_output_path).to eq("#{relative_data_folder}/output-#{job.id}")
+
+        job.script = "single-html-build.js"
+        expect(job.relative_output_path).to eq("#{relative_data_folder}/report-#{job.id}.html")
+      end
+    end
+
+    describe "#persisted_output_path" do
+      it "returns nil when persisted_output is blank" do
+        job.persisted_output = nil
+        expect(job.persisted_output_path).to be(nil)
+      end
+
+      it "returns nil when persisted_output is empty string" do
+        job.persisted_output = ""
+        expect(job.persisted_output_path).to be(nil)
+      end
+
+      it "resolves relative persisted_output against Rails.root so path survives deploys" do
+        relative_path = "tmp/sensemaker_test_folder/data/output-60"
+        job.persisted_output = relative_path
+        expect(job.persisted_output_path).to eq(Rails.root.join(relative_path))
+        expect(job.persisted_output_path.to_s).to include(Rails.root.to_s)
+      end
+    end
+
     describe "#output_artifact_paths" do
       include_context "sensemaker paths stubbed"
       let(:base_path) { "#{data_folder}/output-#{job.id}" }
