@@ -4,32 +4,34 @@ describe Llm::Config do
   describe ".context" do
     before { stub_secrets(llm: { openai_api_key: "1234" }) }
 
+    let(:config) { instance_double(RubyLLM::Configuration) }
+    let(:context_double) { double("RubyLLM::Context", config: config) }
+    before do
+      allow(config).to receive(:openai_api_key=)
+      expect(RubyLLM).to receive(:context).and_yield(config).and_return(context_double)
+    end
+
     it "creates a context with tenant secrets without errors" do
-      config = instance_double(RubyLLM::Configuration)
       expect(config).to receive(:openai_api_key=).with("1234")
-      context = double("RubyLLM::Context", config: config)
-      expect(RubyLLM).to receive(:context).and_yield(config).and_return(context)
 
       expect { Llm::Config.context }.not_to raise_error
     end
 
-    it "sets GOOGLE_APPLICATION_CREDENTIALS when google_application_credentials is present" do
-      stub_secrets(
-        llm: { openai_api_key: "1234" },
-        google_application_credentials: "/tmp/dummy.json"
-      )
+    context "google_application_credentials is present" do
+      before do
+        stub_secrets(
+          llm: { openai_api_key: "1234" },
+          google_application_credentials: "/tmp/dummy.json"
+        )
+      end
 
-      config = instance_double(RubyLLM::Configuration)
-      allow(config).to receive(:openai_api_key=)
-      context = double("RubyLLM::Context", config: config)
-      expect(RubyLLM).to receive(:context).and_yield(config).and_return(context)
+      let!(:original_google_application_credentials) { ENV["GOOGLE_APPLICATION_CREDENTIALS"] }
+      after { ENV["GOOGLE_APPLICATION_CREDENTIALS"] = original_google_application_credentials }
 
-      original = ENV["GOOGLE_APPLICATION_CREDENTIALS"]
-      begin
+      it "sets GOOGLE_APPLICATION_CREDENTIALS" do
         Llm::Config.context
+
         expect(ENV["GOOGLE_APPLICATION_CREDENTIALS"]).to eq("/tmp/dummy.json")
-      ensure
-        ENV["GOOGLE_APPLICATION_CREDENTIALS"] = original
       end
     end
   end
