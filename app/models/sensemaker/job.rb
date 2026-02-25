@@ -137,7 +137,7 @@ module Sensemaker
       Rails.root.join(p)
     end
 
-    def output_artifact_paths
+    def output_artefact_paths
       if persisted_output.present?
         base_path = persisted_output_path.to_s
       else
@@ -164,7 +164,7 @@ module Sensemaker
     end
 
     def has_outputs?
-      output_artifact_paths.all? { |path| File.exist?(path) }
+      output_artefact_paths.all? { |path| File.exist?(path) }
     end
 
     def publishable?

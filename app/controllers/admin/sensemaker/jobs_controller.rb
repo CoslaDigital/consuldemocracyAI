@@ -220,7 +220,7 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
 
   def download
     @sensemaker_job = Sensemaker::Job.find(params[:id])
-    artefacts = @sensemaker_job.output_artifact_paths.select { |p| File.exist?(p) }
+    artefacts = @sensemaker_job.output_artefact_paths.select { |p| File.exist?(p) }
 
     if params[:artefact].present?
       requested = File.join(Sensemaker::Paths.sensemaker_data_folder, params[:artefact])
@@ -232,9 +232,10 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
       end
     end
 
-    if @sensemaker_job.persisted_output.present? && File.exist?(@sensemaker_job.persisted_output)
-      return send_file @sensemaker_job.persisted_output,
-                       filename: File.basename(@sensemaker_job.persisted_output)
+    path = @sensemaker_job.persisted_output_path
+    if path.present? && File.exist?(path)
+      return send_file path,
+                       filename: File.basename(path)
     end
 
     redirect_to admin_sensemaker_jobs_path,
