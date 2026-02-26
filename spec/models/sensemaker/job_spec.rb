@@ -256,12 +256,12 @@ describe Sensemaker::Job do
         it "uses default_output_path for single output scripts" do
           job.script = "categorization_runner.ts"
           expected_path = "#{data_folder}/categorization-output-#{job.id}.csv"
-          expect(job.output_artifact_paths).to eq([expected_path])
+          expect(job.output_artefact_paths).to eq([expected_path])
         end
 
         it "uses default_output_path for advanced_runner.ts" do
           job.script = "advanced_runner.ts"
-          expect(job.output_artifact_paths).to eq([
+          expect(job.output_artefact_paths).to eq([
             "#{base_path}-summary.json",
             "#{base_path}-topic-stats.json",
             "#{base_path}-comments-with-scores.json"
@@ -270,7 +270,7 @@ describe Sensemaker::Job do
 
         it "uses default_output_path for runner.ts" do
           job.script = "runner.ts"
-          expect(job.output_artifact_paths).to eq([
+          expect(job.output_artefact_paths).to eq([
             "#{base_path}-summary.json",
             "#{base_path}-summary.html",
             "#{base_path}-summary.md",
@@ -288,12 +288,12 @@ describe Sensemaker::Job do
 
         it "uses resolved persisted_output_path (absolute) so File.exist? works after deploys" do
           job.script = "categorization_runner.ts"
-          expect(job.output_artifact_paths).to eq([persisted_path])
+          expect(job.output_artefact_paths).to eq([persisted_path])
         end
 
         it "uses persisted_output for advanced_runner.ts" do
           job.script = "advanced_runner.ts"
-          expect(job.output_artifact_paths).to eq([
+          expect(job.output_artefact_paths).to eq([
             "#{persisted_path}-summary.json",
             "#{persisted_path}-topic-stats.json",
             "#{persisted_path}-comments-with-scores.json"
@@ -302,7 +302,7 @@ describe Sensemaker::Job do
 
         it "uses persisted_output for runner.ts" do
           job.script = "runner.ts"
-          expect(job.output_artifact_paths).to eq([
+          expect(job.output_artefact_paths).to eq([
             "#{persisted_path}-summary.json",
             "#{persisted_path}-summary.html",
             "#{persisted_path}-summary.md",
@@ -320,7 +320,7 @@ describe Sensemaker::Job do
           it "returns absolute paths via persisted_output_path so has_outputs? can find files" do
             job.script = "categorization_runner.ts"
             expected = Rails.root.join(relative_path).to_s
-            expect(job.output_artifact_paths).to eq([expected])
+            expect(job.output_artefact_paths).to eq([expected])
           end
         end
       end
