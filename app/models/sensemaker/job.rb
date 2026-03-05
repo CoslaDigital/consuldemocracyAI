@@ -15,6 +15,11 @@ module Sensemaker
       "Budget::Group"
     ].freeze
 
+    PUBLISHABLE_SCRIPTS = [
+      "single-html-build.js",
+      "runner.ts"
+    ].freeze
+
     validates :analysable_type, inclusion: { in: ANALYSABLE_TYPES }
 
     belongs_to :user, optional: false
@@ -24,6 +29,7 @@ module Sensemaker
 
     validates :analysable_type, presence: true
     validates :analysable_id, presence: true, unless: -> { analysable_type == "Proposal" }
+    validate :publishing_is_allowed
 
     belongs_to :analysable, polymorphic: true, optional: true
 
@@ -125,7 +131,7 @@ module Sensemaker
       Rails.root.join(p)
     end
 
-    def output_artifact_paths
+    def output_artefact_paths
       if persisted_output.present?
         base_path = persisted_output_path.to_s
       else
@@ -151,8 +157,16 @@ module Sensemaker
       end
     end
 
+    def existing_output_artefact_paths
+      output_artefact_paths.select { |path| File.exist?(path) }
+    end
+
     def has_outputs?
-      output_artifact_paths.all? { |path| File.exist?(path) }
+      existing_output_artefact_paths.size == output_artefact_paths.size
+    end
+
+    def publishable?
+      PUBLISHABLE_SCRIPTS.include?(script) && finished? && !errored? && has_outputs?
     end
 
     def self.for_budget(budget)
@@ -177,6 +191,14 @@ module Sensemaker
     end
 
     private
+
+      def publishing_is_allowed
+        return unless published? && published_changed? && !published_was
+
+        unless publishable?
+          errors.add(:published, :not_publishable, message: "cannot be published")
+        end
+      end
 
       def set_persisted_output_if_successful
         return unless finished_at.present? && error.nil?
