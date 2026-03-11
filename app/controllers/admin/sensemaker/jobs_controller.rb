@@ -1,10 +1,29 @@
 class Admin::Sensemaker::JobsController < Admin::BaseController
+  include Sensemaker::ResourceTypeResolution
+
   def index
     @running_jobs = Sensemaker::Job.running.includes(:children).order(created_at: :desc)
-    @sensemaker_jobs = Sensemaker::Job.where(parent_job_id: nil)
-                                      .includes(:children)
-                                      .where.not(id: @running_jobs.pluck(:id))
-                                      .order(created_at: :desc)
+
+    resource_type, resource_id = [params[:resource_type].presence, params[:resource_id].presence]
+    if resource_type.present? && resource_id.present?
+      @filter_target = sensemaker_find_resource(resource_type, resource_id)
+
+      unless @filter_target
+        redirect_to admin_sensemaker_jobs_path, alert: t("admin.sensemaker.index.target_not_found")
+        return
+      end
+
+      base_scope = Sensemaker::Job.scope_for_analysable(@filter_target, published_only: false)
+      @sensemaker_jobs = base_scope.where(parent_job_id: nil)
+                                  .includes(:children)
+                                  .where.not(id: @running_jobs.pluck(:id))
+                                  .order(created_at: :desc)
+    else
+      @sensemaker_jobs = Sensemaker::Job.where(parent_job_id: nil)
+                                        .includes(:children)
+                                        .where.not(id: @running_jobs.pluck(:id))
+                                        .order(created_at: :desc)
+    end
   end
 
   def show

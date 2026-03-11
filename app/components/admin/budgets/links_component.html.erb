@@ -18,4 +18,10 @@
   <% end %>
 
   <%= action(:edit, text: t("admin.budgets.actions.edit")) %>
+
+  <% if feature?(:sensemaker) %>
+    <%= action(:sensemaker_analyses,
+               text: t("admin.budgets.index.sensemaker_analyses"),
+               path: admin_sensemaker_jobs_path(resource_type: "budgets", resource_id: budget.id)) %>
+  <% end %>
 </div>

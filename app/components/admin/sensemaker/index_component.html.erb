@@ -51,6 +51,13 @@
           <%= link_to t("admin.sensemaker.index.new_run"), new_admin_sensemaker_job_path, class: "button" %>
         </h3>
 
+        <% if filter_target.present? %>
+          <p class="margin-bottom flex-row text-muted">
+            <span class="margin-right"><%= t("admin.sensemaker.index.filtered_by_target", name: filter_target_name) %></span>
+            <%= link_to t("admin.sensemaker.index.show_all_jobs"), admin_sensemaker_jobs_path, class: "no-margin" %>
+          </p>
+        <% end %>
+
         <table class="job-table">
           <thead>
             <tr>

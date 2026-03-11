@@ -104,6 +104,7 @@ en:
         type_pending: "Pending: No headings yet"
         type_single: "Single heading"
         admin_ballots: Ballots
+        sensemaker_analyses: "Sensemaker analyses"
         no_budgets: "There are no budgets."
       create:
         notice: New participatory budget created successfully!
@@ -1779,6 +1780,9 @@ en:
         table_actions: "Actions"
         cancel_all: "Cancel all"
         new_run: "New Run"
+        target_not_found: "Target not found."
+        filtered_by_target: "Showing jobs for %{name}"
+        show_all_jobs: "Show all jobs"
       new:
         title: New Sensemaker analysis
         select_target: "Select a target from the results"
