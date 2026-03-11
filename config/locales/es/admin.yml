@@ -104,6 +104,7 @@ es:
         type_pending: "Pendiente: Aún no hay partidas"
         type_single: "Partida única"
         admin_ballots: Urnas
+        sensemaker_analyses: "Análisis Sensemaker"
         no_budgets: "No hay presupuestos participativos."
       create:
         notice: '¡Presupuestos participativos creados con éxito!'
@@ -1827,6 +1828,9 @@ es:
         table_actions: "Acciones"
         cancel_all: "Cancelar todo"
         new_run: "Nueva ejecución"
+        target_not_found: "Objetivo no encontrado."
+        filtered_by_target: "Mostrando trabajos de %{name}"
+        show_all_jobs: "Ver todos los trabajos"
       new:
         title: Nuevo análisis Sensemaker
         select_target: "Selecciona un objetivo de los resultados"
