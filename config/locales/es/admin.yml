@@ -104,6 +104,7 @@ es:
         type_pending: "Pendiente: Aún no hay partidas"
         type_single: "Partida única"
         admin_ballots: Urnas
+        sensemaker_analyses: "Análisis Sensemaker"
         no_budgets: "No hay presupuestos participativos."
       create:
         notice: '¡Presupuestos participativos creados con éxito!'
@@ -1845,6 +1846,7 @@ es:
           legislation_questions: "Preguntas legislativas"
           legislation_proposals: "Propuestas legislativas"
           legislation_question_options: "Opciones de pregunta legislativa"
+        show_all_jobs: "Ver todos los trabajos"
       new:
         title: Nuevo análisis Sensemaker
         select_target: "Selecciona un objetivo de los resultados"
