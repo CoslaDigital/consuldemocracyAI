@@ -4,7 +4,7 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
   def index
     @running_jobs = Sensemaker::Job.running.includes(:children).order(created_at: :desc)
 
-    resource_type, resource_id = [params[:resource_type].presence, params[:resource_id].presence]
+    resource_type, resource_id = normalized_filter_params
     if resource_type.present? && resource_id.present?
       @filter_target = sensemaker_find_resource(resource_type, resource_id)
 
@@ -293,6 +293,10 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
   end
 
   private
+
+    def normalized_filter_params
+      [params[:resource_type].presence, params[:resource_id].presence]
+    end
 
     def sensemaker_job_params
       params.require(:sensemaker_job).permit(:analysable_type, :analysable_id, :script, :additional_context)
