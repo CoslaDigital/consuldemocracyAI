@@ -104,7 +104,6 @@ en:
         type_pending: "Pending: No headings yet"
         type_single: "Single heading"
         admin_ballots: Ballots
-        sensemaker_analyses: "Sensemaker analyses"
         no_budgets: "There are no budgets."
       create:
         notice: New participatory budget created successfully!
@@ -1785,6 +1784,9 @@ en:
         filter_by: "Filter by"
         filter_all_types: "-"
         filter_reset: "× Clear filters"
+        sensemaker_analyses_count:
+          one: "1 sensemaker analysis"
+          other: "%{count} sensemaker analyses"
         resource_types:
           budgets: "Budgets"
           debates: "Debates"

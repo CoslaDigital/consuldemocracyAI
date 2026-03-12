@@ -104,7 +104,6 @@ es:
         type_pending: "Pendiente: Aún no hay partidas"
         type_single: "Partida única"
         admin_ballots: Urnas
-        sensemaker_analyses: "Análisis Sensemaker"
         no_budgets: "No hay presupuestos participativos."
       create:
         notice: '¡Presupuestos participativos creados con éxito!'
@@ -1833,6 +1832,9 @@ es:
         filter_by: "Filtrar por"
         filter_all_types: "-"
         filter_reset: "× Limpiar filtros"
+        sensemaker_analyses_count:
+          one: "1 análisis Sensemaker"
+          other: "%{count} análisis Sensemaker"
         resource_types:
           budgets: "Presupuestos"
           debates: "Debates"
