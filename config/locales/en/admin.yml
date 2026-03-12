@@ -104,7 +104,6 @@ en:
         type_pending: "Pending: No headings yet"
         type_single: "Single heading"
         admin_ballots: Ballots
-        sensemaker_analyses: "Sensemaker analyses"
         no_budgets: "There are no budgets."
       create:
         notice: New participatory budget created successfully!

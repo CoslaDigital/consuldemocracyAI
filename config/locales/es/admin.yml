@@ -104,7 +104,6 @@ es:
         type_pending: "Pendiente: Aún no hay partidas"
         type_single: "Partida única"
         admin_ballots: Urnas
-        sensemaker_analyses: "Análisis Sensemaker"
         no_budgets: "No hay presupuestos participativos."
       create:
         notice: '¡Presupuestos participativos creados con éxito!'
