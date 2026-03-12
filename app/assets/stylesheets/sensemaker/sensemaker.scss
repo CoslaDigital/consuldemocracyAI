@@ -16,10 +16,11 @@
 
 .sensemaker-analyses-link {
   @include has-fa-icon(microscope, solid);
+
   &::before {
+    left: -0.25rem;
     position: relative;
     top: -0.1rem;
-    left: -0.25rem;
   }
 }
 
@@ -355,7 +356,7 @@
     label { font-weight: normal; opacity: 0.8; }
 
     a,
-p { margin-bottom: 0; }
+    p { margin-bottom: 0; }
     p { opacity: 0.8; }
   }
 }
