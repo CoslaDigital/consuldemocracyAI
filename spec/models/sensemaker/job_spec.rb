@@ -121,20 +121,23 @@ describe Sensemaker::Job do
         create(:sensemaker_job, analysable_type: "Budget", analysable_id: budget.id, published: false)
       end
       let!(:other_budget_job) do
-        j = create(:sensemaker_job, analysable_type: "Budget", analysable_id: create(:budget).id, published: false)
+        j = create(:sensemaker_job,
+                   analysable_type: "Budget",
+                   analysable_id: create(:budget).id,
+                   published: false)
         j.update_column(:published, true)
         j
       end
 
       it "with published_only: true returns only published jobs for that budget" do
-        scope = described_class.for_analysable(budget, published_only: true)
+        scope = Sensemaker::Job.for_analysable(budget, published_only: true)
         expect(scope).to include(published_budget_job)
         expect(scope).not_to include(unpublished_budget_job)
         expect(scope).not_to include(other_budget_job)
       end
 
       it "with published_only: false returns all jobs for that budget" do
-        scope = described_class.for_analysable(budget, published_only: false)
+        scope = Sensemaker::Job.for_analysable(budget, published_only: false)
         expect(scope).to include(published_budget_job)
         expect(scope).to include(unpublished_budget_job)
         expect(scope).not_to include(other_budget_job)
@@ -153,13 +156,13 @@ describe Sensemaker::Job do
       end
 
       it "with published_only: true returns only published jobs for that record" do
-        scope = described_class.for_analysable(debate, published_only: true)
+        scope = Sensemaker::Job.for_analysable(debate, published_only: true)
         expect(scope).to include(published_debate_job)
         expect(scope).not_to include(unpublished_debate_job)
       end
 
       it "with published_only: false returns all jobs for that record" do
-        scope = described_class.for_analysable(debate, published_only: false)
+        scope = Sensemaker::Job.for_analysable(debate, published_only: false)
         expect(scope).to include(published_debate_job)
         expect(scope).to include(unpublished_debate_job)
       end
@@ -172,20 +175,26 @@ describe Sensemaker::Job do
         j
       end
       let!(:specific_proposal_job) do
-        j = create(:sensemaker_job, analysable_type: "Proposal", analysable_id: create(:proposal).id, published: false)
+        j = create(:sensemaker_job,
+                   analysable_type: "Proposal",
+                   analysable_id: create(:proposal).id,
+                   published: false)
         j.update_column(:published, true)
         j
       end
 
       it "with published_only: true returns only published jobs with nil analysable_id" do
-        scope = described_class.for_analysable(Proposal, published_only: true)
+        scope = Sensemaker::Job.for_analysable(Proposal, published_only: true)
         expect(scope).to include(all_proposals_job)
         expect(scope).not_to include(specific_proposal_job)
       end
 
       it "with published_only: false returns all jobs with nil analysable_id" do
-        unpublished = create(:sensemaker_job, analysable_type: "Proposal", analysable_id: nil, published: false)
-        scope = described_class.for_analysable(Proposal, published_only: false)
+        unpublished = create(:sensemaker_job,
+                             analysable_type: "Proposal",
+                             analysable_id: nil,
+                             published: false)
+        scope = Sensemaker::Job.for_analysable(Proposal, published_only: false)
         expect(scope).to include(all_proposals_job)
         expect(scope).to include(unpublished)
         expect(scope).not_to include(specific_proposal_job)
@@ -204,7 +213,7 @@ describe Sensemaker::Job do
       end
 
       it "with published_only: false returns all jobs for that poll" do
-        scope = described_class.for_analysable(poll, published_only: false)
+        scope = Sensemaker::Job.for_analysable(poll, published_only: false)
         expect(scope).to include(published_poll_job)
         expect(scope).to include(unpublished_poll_job)
       end

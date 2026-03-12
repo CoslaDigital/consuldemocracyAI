@@ -16,17 +16,27 @@ describe Admin::Sensemaker::JobsController do
       get :index
 
       expect(response).to have_http_status(:ok)
-      expect(controller.instance_variable_get(:@filter_target)).to be_nil
+      expect(controller.instance_variable_get(:@filter_target)).to be(nil)
     end
 
     context "when filtering by resource_type and resource_id" do
       let!(:debate_job) do
-        create(:sensemaker_job, user: admin, analysable_type: "Debate", analysable_id: debate.id,
-                               parent_job_id: nil, started_at: nil, finished_at: 1.day.ago)
+        create(:sensemaker_job,
+               user: admin,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               parent_job_id: nil,
+               started_at: nil,
+               finished_at: 1.day.ago)
       end
       let!(:other_job) do
-        create(:sensemaker_job, user: admin, analysable_type: "Debate", analysable_id: create(:debate).id,
-                               parent_job_id: nil, started_at: nil, finished_at: 1.day.ago)
+        create(:sensemaker_job,
+               user: admin,
+               analysable_type: "Debate",
+               analysable_id: create(:debate).id,
+               parent_job_id: nil,
+               started_at: nil,
+               finished_at: 1.day.ago)
       end
 
       it "sets filter_target and scopes jobs to that resource" do
