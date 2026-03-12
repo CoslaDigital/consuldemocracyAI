@@ -40,6 +40,14 @@ class Admin::Sensemaker::IndexComponent < ApplicationComponent
   def filter_target_name
     return nil unless filter_target
 
-    filter_target&.name.presence || filter_target&.title.presence || "##{filter_target.id}"
+    if filter_target.respond_to?(:title) && filter_target.title.present?
+      filter_target.title
+    elsif filter_target.respond_to?(:name) && filter_target.name.present?
+      filter_target.name
+    elsif filter_target.respond_to?(:value) && filter_target.value.present?
+      filter_target.value
+    else
+      "##{filter_target.id}"
+    end
   end
 end
