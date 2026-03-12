@@ -4,26 +4,31 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
   def index
     @running_jobs = Sensemaker::Job.running.includes(:children).order(created_at: :desc)
 
-    resource_type, resource_id = normalized_filter_params
-    if resource_type.present? && resource_id.present?
-      @filter_target = sensemaker_find_resource(resource_type, resource_id)
-
+    @filter_resource_type, @filter_resource_id = normalized_filter_params
+    if @filter_resource_type.present? && @filter_resource_id.present?
+      @filter_target = sensemaker_find_resource(@filter_resource_type, @filter_resource_id)
       unless @filter_target
         redirect_to admin_sensemaker_jobs_path, alert: t("admin.sensemaker.index.target_not_found")
         return
       end
-
-      base_scope = Sensemaker::Job.scope_for_analysable(@filter_target, published_only: false)
-      @sensemaker_jobs = base_scope.where(parent_job_id: nil)
-                                  .includes(:children)
-                                  .where.not(id: @running_jobs.pluck(:id))
-                                  .order(created_at: :desc)
+      base_scope = Sensemaker::Job.for_analysable(@filter_target, published_only: false)
+    elsif @filter_resource_type.present?
+      resource_class = sensemaker_model_for_resource_type(@filter_resource_type)
+      unless resource_class
+        redirect_to admin_sensemaker_jobs_path, alert: t("admin.sensemaker.index.target_not_found")
+        return
+      end
+      base_scope = Sensemaker::Job.by_analysable_type(resource_class.to_s)
     else
-      @sensemaker_jobs = Sensemaker::Job.where(parent_job_id: nil)
-                                        .includes(:children)
-                                        .where.not(id: @running_jobs.pluck(:id))
-                                        .order(created_at: :desc)
+      base_scope = Sensemaker::Job
     end
+
+    @sensemaker_jobs = base_scope.where(parent_job_id: nil)
+                                 .includes(:children)
+                                 .where.not(id: @running_jobs.pluck(:id))
+                                 .order(created_at: :desc)
+
+    @sensemaker_resource_types = Sensemaker::ResourceTypeResolution::SENSEMAKER_RESOURCE_TYPES
   end
 
   def show

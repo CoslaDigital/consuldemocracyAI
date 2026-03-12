@@ -4,6 +4,18 @@ module Sensemaker
   module ResourceTypeResolution
     extend ActiveSupport::Concern
 
+    SENSEMAKER_RESOURCE_TYPES = %w[
+      budgets
+      debates
+      proposals
+      polls
+      poll_questions
+      legislation_processes
+      legislation_questions
+      legislation_proposals
+      legislation_question_options
+    ].freeze
+
     def sensemaker_model_for_resource_type(resource_type)
       case resource_type.to_s
       when "budgets"
@@ -14,8 +26,6 @@ module Sensemaker
         Proposal
       when "polls"
         Poll
-      when "topics"
-        Topic
       when "poll_questions"
         Poll::Question
       when "legislation_processes"

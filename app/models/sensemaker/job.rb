@@ -174,6 +174,12 @@ module Sensemaker
       PUBLISHABLE_SCRIPTS.include?(script) && finished? && !errored? && has_outputs?
     end
 
+    def self.budget_related
+      where(analysable_type: "Budget").or(
+        where(analysable_type: "Budget::Group")
+      )
+    end
+
     def self.for_budget_any_status(budget)
       group_subquery = budget.groups.select(:id)
       where(analysable_type: "Budget", analysable_id: budget.id).or(
@@ -183,6 +189,16 @@ module Sensemaker
 
     def self.for_budget(budget)
       published.merge(for_budget_any_status(budget))
+    end
+
+    def self.process_related
+      where(analysable_type: "Legislation::Process").or(
+        where(analysable_type: "Legislation::Proposal").or(
+          where(analysable_type: "Legislation::Question").or(
+            where(analysable_type: "Legislation::QuestionOption")
+          )
+        )
+      )
     end
 
     def self.for_process_any_status(process)
@@ -202,6 +218,12 @@ module Sensemaker
       published.merge(for_process_any_status(process))
     end
 
+    def self.poll_related
+      where(analysable_type: "Poll").or(
+        where(analysable_type: "Poll::Question")
+      )
+    end
+
     def self.for_poll_any_status(poll)
       questions_subquery = poll.questions.select(:id)
       where(analysable_type: "Poll", analysable_id: poll.id).or(
@@ -211,6 +233,12 @@ module Sensemaker
 
     def self.for_poll(poll)
       published.merge(for_poll_any_status(poll))
+    end
+
+    def self.legislation_question_related
+      where(analysable_type: "Legislation::Question").or(
+        where(analysable_type: "Legislation::QuestionOption")
+      )
     end
 
     def self.for_legislation_question_any_status(question)
@@ -224,7 +252,7 @@ module Sensemaker
       published.merge(for_legislation_question_any_status(question))
     end
 
-    def self.scope_for_analysable(record, published_only: true)
+    def self.for_analysable(record, published_only: true)
       if record == Proposal
         base = where(analysable_type: "Proposal", analysable_id: nil)
         return published_only ? base.merge(published) : base
@@ -240,8 +268,23 @@ module Sensemaker
       when Legislation::Question
         published_only ? for_legislation_question(record) : for_legislation_question_any_status(record)
       else
-        base = where(analysable_type: record.class.name, analysable_id: record.id)
+        base = where(analysable: record)
         published_only ? base.merge(published) : base
+      end
+    end
+
+    def self.by_analysable_type(type)
+      case type
+      when "Budget"
+        budget_related
+      when "Legislation::Process"
+        process_related
+      when "Poll"
+        poll_related
+      when "Legislation::Question"
+        legislation_question_related
+      else
+        where(analysable_type: type)
       end
     end
 
