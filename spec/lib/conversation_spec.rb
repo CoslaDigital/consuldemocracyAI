@@ -224,12 +224,12 @@ describe Conversation do
 
     it "can compile context for other target types" do
       target_types = Sensemaker::Job::ANALYSABLE_TYPES - ["Poll", "Poll::Question", "Legislation::Question",
-                                                          "Legislation::Proposal", "Debate",
+                                                          "Legislation::Proposal", "Debate", "Proposal",
                                                           "Legislation::QuestionOption",
                                                           "Budget", "Budget::Group"]
       target_types.each do |target_type|
         target_factory = target_type.downcase.gsub("::", "_").to_sym
-        target = create(target_factory)
+        target = create!(target_factory)
         3.times do
           create(:comment, commentable: target, user: user)
         end
