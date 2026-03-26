@@ -90,7 +90,7 @@ class Conversation
       unless question.open?
         question_type = question.multiple? ? "multiple choice" : "single choice"
         raise ArgumentError,
-              "Sensemaker analysis is only supported for open-ended Poll::Question. " \
+              "Conversation is only supported for open-ended Poll::Question. " \
               "This question is #{question_type}."
       end
 
