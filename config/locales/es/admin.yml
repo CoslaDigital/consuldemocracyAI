@@ -1801,7 +1801,7 @@ es:
       related_content_description: "Añade contenido relacionado generado automáticamente a propuestas y proyectos de presupuestos participativos."
       script_info: "Recibirá un correo electrónico en %{email} cuando el script termine de ejecutarse."
       script_name: "Nombre del script:"
-      sscripts:
+      scripts:
         proposal_tags:
           description: "Extrae etiquetas de temas específicos de las propuestas ciudadanas usando IA."
           label: "Propuestas: Generar etiquetas"
