@@ -62,7 +62,7 @@ RSpec.describe MachineLearning do
 
         conversation = instance_double(
           Ml::Conversation,
-          comments: [instance_double("CommentLike", body: "Great idea!")],
+          comments: [instance_double(Conversation::CommentLikeItem, body: "Great idea!")],
           compile_context: "compiled context"
         )
         expect(Ml::Conversation).to receive(:new).with("Proposal", proposal.id).and_return(conversation)
