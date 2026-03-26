@@ -60,8 +60,17 @@ RSpec.describe MachineLearning do
         create(:comment, commentable: proposal, body: "Great idea!")
         job.update!(script: "proposal_summary_comments")
 
+        conversation = instance_double(
+          Ml::Conversation,
+          comments: [instance_double(Conversation::CommentLikeItem, body: "Great idea!")],
+          compile_context: "compiled context"
+        )
+        expect(Ml::Conversation).to receive(:new).with("Proposal", proposal.id).and_return(conversation)
+
         sentiment_data = { "positive" => 100, "negative" => 0, "neutral" => 0 }
-        allow(MlHelper).to receive(:summarize_comments).and_return(
+        expect(MlHelper).to receive(:summarize_comments)
+          .with(["Great idea!"], "compiled context", config: anything)
+          .and_return(
           {
             "summary_markdown" => "Users are supportive.",
             "sentiment" => sentiment_data,

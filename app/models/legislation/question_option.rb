@@ -6,7 +6,10 @@ class Legislation::QuestionOption < ApplicationRecord
   include Globalizable
 
   belongs_to :question, foreign_key: "legislation_question_id", inverse_of: :question_options
-  has_many :answers, foreign_key: "legislation_question_id", dependent: :destroy, inverse_of: :question
+  has_many :answers,
+           foreign_key: "legislation_question_option_id",
+           dependent: :destroy,
+           inverse_of: :question_option
 
   validates :question, presence: true
   validates_translation :value, presence: true
