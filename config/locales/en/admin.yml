@@ -1797,7 +1797,6 @@ en:
           legislation_questions: "Legislation questions"
           legislation_proposals: "Legislation proposals"
           legislation_question_options: "Legislation question options"
-        show_all_jobs: "Show all jobs"
       new:
         title: New Sensemaker analysis
         select_target: "Select a target from the results"

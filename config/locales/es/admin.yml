@@ -1845,7 +1845,6 @@ es:
           legislation_questions: "Preguntas legislativas"
           legislation_proposals: "Propuestas legislativas"
           legislation_question_options: "Opciones de pregunta legislativa"
-        show_all_jobs: "Ver todos los trabajos"
       new:
         title: Nuevo análisis Sensemaker
         select_target: "Selecciona un objetivo de los resultados"
