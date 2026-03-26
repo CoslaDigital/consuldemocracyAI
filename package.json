@@ -2,11 +2,11 @@
   "name": "consuldemocracy",
   "dependencies": {
     "blueimp-file-upload": "^10.32.0",
-    "c3": "^0.4.10",
-    "d3": "^3.5.17",
-    "foundation-sites": "^6.8.1",
+    "c3": "0.4.23",
+    "d3": "3.5.17",
+    "foundation-sites": "6.8.1",
     "jquery": "^3.7.1",
-    "jquery-ui": "^1.13.3",
+    "jquery-ui": "1.13.3",
     "jquery-ujs": "^1.2.3",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
@@ -19,5 +19,10 @@
     "stylelint": "^16.26.1",
     "stylelint-order": "^7.0.1",
     "stylelint-scss": "^6.12.1"
+  },
+  "overrides": {
+    "c3": {
+      "d3": "3.5.17"
+    }
   }
 }
