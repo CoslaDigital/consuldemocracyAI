@@ -1,6 +1,4 @@
 //= require d3/dist/d3
-//= require c3/c3
-//= require c3ext
 
 (function() {
   "use strict";
