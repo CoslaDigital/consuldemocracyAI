@@ -70,11 +70,7 @@
                 </td>
               </tr>
             <% end %>
-          </table>
-        </div>
 
-        <div class="small-12 medium-6 column">
-          <table class="job-details-table">
             <tr>
               <td><strong><%= t("admin.sensemaker.job_show.target_type") %></strong></td>
               <td><%= sensemaker_job.analysable_type %></td>
@@ -84,6 +80,11 @@
               <td><%= analysable_title %></td>
             </tr>
           </table>
+        </div>
+
+        <div class="small-12 medium-6 column additional-context">
+          <h5><%= t("admin.sensemaker.job_show.additional_context") %></h5>
+          <pre class="small"><%= sensemaker_job.additional_context %></pre>
         </div>
       </div>
     </section>
