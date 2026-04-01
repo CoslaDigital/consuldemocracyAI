@@ -1,6 +1,4 @@
-//= require d3
-//= require c3
-//= require c3ext
+//= require d3/dist/d3
 
 (function() {
   "use strict";
@@ -195,7 +193,9 @@
           type: "category",
           tick: {
             values: this.tickXValues(),
-            centered: true
+            centered: true,
+            multiline: false,
+            culling: false
           }
         }
       },

@@ -1,6 +1,5 @@
-//= require d3
-//= require c3
-//= require c3ext
+//= require d3/dist/d3
+//= require @observablehq/plot/dist/plot.umd.min
 //= require stats
 
 var initialize_stats_modules = function() {
