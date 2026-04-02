@@ -1,18 +1,20 @@
 .admin .sensemaker {
   .additional-context {
     border: 1px solid $border;
-    padding: 0.2rem;
     height: fit-content;
+    padding: 0.2rem;
+
     pre {
-      word-wrap: break-word;
-      white-space: break-spaces;
+      background-color: #efefef;
+      margin: 0;
+      max-height: 22.4rem;
+      overflow-wrap: break-word;
       overflow-y: scroll;
       padding: 0.2rem;
-      background-color: #efefef;
-      max-height: 22.4rem;
-      margin: 0;
+      white-space: break-spaces;
     }
   }
+
   form.sensemaker-buttons-busy {
     button[type="submit"][data-temp-disable="true"],
     input[type="submit"][data-temp-disable="true"] {
