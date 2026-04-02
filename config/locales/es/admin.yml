@@ -1866,6 +1866,7 @@ es:
         job_spawned_by: "Trabajo generado por"
         target_type: "Tipo de objetivo"
         target_title: "Título del objetivo"
+        additional_context: "Contexto adicional"
         error_report: "Informe de error"
         error_log: "Registro de errores"
         prerequisite_jobs: "Trabajos prerrequisito"

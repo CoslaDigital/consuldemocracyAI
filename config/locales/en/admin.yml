@@ -1818,6 +1818,7 @@ en:
         job_spawned_by: "Job spawned by"
         target_type: "Target Type"
         target_title: "Target Title"
+        additional_context: "Additional context"
         error_report: "Error report"
         error_log: "Error Log"
         prerequisite_jobs: "Prerequisite Jobs"
