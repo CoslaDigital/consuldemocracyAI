@@ -133,7 +133,7 @@ describe Sensemaker::JobRunner do
       "the input file does not exist" => [
         -> {
           allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
-          allow(File).to receive(:exist?).with(service.input_file).and_return(false)
+          allow(File).to receive(:exist?).with(job.input_file).and_return(false)
         },
         "Input file not found"
       ],
@@ -143,14 +143,14 @@ describe Sensemaker::JobRunner do
             .and_return("/nonexistent/key.json")
           allow(File).to receive(:exist?).with("/nonexistent/key.json").and_return(false)
           allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
-          allow(File).to receive(:exist?).with(service.input_file).and_return(true)
+          allow(File).to receive(:exist?).with(job.input_file).and_return(true)
         },
         "Key file (apis.google_application_credentials) not found"
       ],
       "the script file does not exist" => [
         -> {
           allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
-          allow(File).to receive(:exist?).with(service.input_file).and_return(true)
+          allow(File).to receive(:exist?).with(job.input_file).and_return(true)
           allow(File).to receive(:exist?).with(service.script_file).and_return(false)
         },
         "Script file not found"
@@ -224,7 +224,7 @@ describe Sensemaker::JobRunner do
         expect(command).to include("--vertexProject #{service.project_id}")
         expect(command).to include("--modelName gemini-2.5-flash-lite")
         expect(command).not_to include("--keyFilename")
-        expect(command).to include("--inputFile #{service.input_file}")
+        expect(command).to include("--inputFile #{job.input_file}")
         if use_output_file_flag
           expect(command).to include("--outputFile #{service.output_file}")
         else
@@ -245,47 +245,12 @@ describe Sensemaker::JobRunner do
       command = service.build_command
 
       expect(command).to include("npx ts-node site-build.ts")
-      expect(command).to include("--topics #{service.input_file}-topic-stats.json")
-      expect(command).to include("--summary #{service.input_file}-summary.json")
-      expect(command).to include("--comments #{service.input_file}-comments-with-scores.json")
+      expect(command).to include("--topics #{job.input_file}-topic-stats.json")
+      expect(command).to include("--summary #{job.input_file}-summary.json")
+      expect(command).to include("--comments #{job.input_file}-comments-with-scores.json")
       expect(command).to include('--reportTitle "Report for Test Label"')
 
       expect(command).to include("npx ts-node single-html-build.js --outputFile #{service.output_file}")
-    end
-  end
-
-  describe "#input_file" do
-    let(:service) { Sensemaker::JobRunner.new(job) }
-
-    %w[categorization_runner.ts runner.ts health_check_runner.ts].each do |script|
-      it "returns the standard input file for #{script}" do
-        job.script = script
-        expected_file = "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{job.id}.csv"
-        expect(service.input_file).to eq(expected_file)
-      end
-    end
-
-    context "when script is advanced_runner.ts" do
-      before do
-        job.script = "advanced_runner.ts"
-      end
-
-      it "returns the categorization output file when job.input_file is not set" do
-        job.input_file = nil
-        expected_file = "#{Sensemaker::Paths.sensemaker_data_folder}/categorization-output-#{job.id}.csv"
-        expect(service.input_file).to eq(expected_file)
-      end
-
-      it "returns the job.input_file when it is set" do
-        custom_file = "/custom/path/to/input.csv"
-        job.input_file = custom_file
-        expect(service.input_file).to eq(custom_file)
-      end
-
-      it "returns the default path when it is an empty string" do
-        job.input_file = ""
-        expect(service.input_file).not_to eq("")
-      end
     end
   end
 
@@ -408,12 +373,11 @@ describe Sensemaker::JobRunner do
   describe "#prepare_input_data" do
     let(:service) { Sensemaker::JobRunner.new(job) }
     let(:mock_exporter) { instance_double(Sensemaker::CsvExporter) }
-    let(:input_file_path) { "/path/to/input-file.csv" }
+    let(:input_file_path) { "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{job.id}.csv" }
     let(:mock_conversation) { instance_double(Sensemaker::Conversation) }
     let(:mock_comments) { Array.new(7) { double("comment") } }
 
     before do
-      allow(service).to receive(:input_file).and_return(input_file_path)
       allow(Sensemaker::CsvExporter).to receive(:new).and_return(mock_exporter)
       allow(mock_exporter).to receive(:export_to_csv)
       allow(job).to receive(:conversation).and_return(mock_conversation)
@@ -435,9 +399,16 @@ describe Sensemaker::JobRunner do
       expect(mock_exporter).to have_received(:export_to_csv).with(input_file_path)
     end
 
+    it "persists input_file after exporting CSV when input_file is blank" do
+      expect(job.read_attribute(:input_file)).to be(nil)
+
+      service.send(:prepare_input_data)
+
+      expect(job.reload.input_file).to eq(input_file_path)
+    end
+
     it "updates the job with additional context" do
       allow(job).to receive(:conversation).and_call_original
-      allow(service).to receive(:input_file).and_return(input_file_path)
 
       service.send(:prepare_input_data)
 
@@ -458,18 +429,18 @@ describe Sensemaker::JobRunner do
       before do
         job.script = "advanced_runner.ts"
         job.input_file = "/tmp/categorization-output.csv"
-        allow(File).to receive(:exist?).with(input_file_path).and_return(true)
+        allow(File).to receive(:exist?).with(job.input_file).and_return(true)
       end
 
       it "calls CsvExporter.filter_zero_vote_comments_from_csv" do
         expect(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(input_file_path).and_return(3)
+          .with(job.input_file).and_return(3)
         service.send(:prepare_input_data)
       end
 
       it "returns the filtered count from filter_zero_vote_comments_from_csv" do
         allow(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(input_file_path).and_return(3)
+          .with(job.input_file).and_return(3)
         result = service.send(:prepare_input_data)
 
         expect(result).to eq(3)
@@ -483,20 +454,19 @@ describe Sensemaker::JobRunner do
       before do
         job.script = "advanced_runner.ts"
         job.input_file = nil
-        allow(service).to receive(:input_file).and_return(input_file_path)
-        allow(File).to receive(:exist?).with(input_file_path).and_return(true)
+        allow(File).to receive(:exist?).with(job.input_file).and_return(true)
       end
 
       it "calls prepare_with_categorization_job and then filters the CSV" do
         allow(service).to receive(:prepare_with_categorization_job).and_return(10)
         allow(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(input_file_path).and_return(8)
+          .with(job.input_file).and_return(8)
 
         result = service.send(:prepare_input_data)
 
         expect(result).to eq(8)
         expect(Sensemaker::CsvExporter).to have_received(:filter_zero_vote_comments_from_csv)
-          .with(input_file_path)
+          .with(job.input_file)
       end
     end
 

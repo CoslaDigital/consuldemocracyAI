@@ -26,18 +26,6 @@ module Sensemaker
       execute_job_workflow
     end
 
-    def input_file
-      if job.input_file.present?
-        job.input_file
-      elsif job.script == "advanced_runner.ts"
-        "#{Sensemaker::Paths.sensemaker_data_folder}/categorization-output-#{job.id}.csv"
-      elsif job.script == "single-html-build.js"
-        "#{Sensemaker::Paths.sensemaker_data_folder}/advanced-output"
-      else
-        "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{job.id}.csv"
-      end
-    end
-
     def output_file_name
       job.output_file_name
     end
@@ -68,9 +56,9 @@ module Sensemaker
         target_label = conversation.target_label(format: :full)
 
         return %Q(npx ts-node site-build.ts \
-                 --topics #{input_file}-topic-stats.json \
-                 --summary #{input_file}-summary.json \
-                 --comments #{input_file}-comments-with-scores.json \
+                 --topics #{job.input_file}-topic-stats.json \
+                 --summary #{job.input_file}-summary.json \
+                 --comments #{job.input_file}-comments-with-scores.json \
                  --reportTitle "Report for #{target_label}" && \
                  npx ts-node single-html-build.js --outputFile #{output_file})
       end
@@ -82,7 +70,7 @@ module Sensemaker
       command = %Q(npx ts-node #{script_file} \
                  --vertexProject #{project_id} \
                  --modelName #{model_name})
-      command += " --inputFile #{input_file}" unless job.script == "health_check_runner.ts"
+      command += " --inputFile #{job.input_file}" unless job.script == "health_check_runner.ts"
       if additional_context.present?
         command += " --additionalContext #{Shellwords.escape(additional_context.to_s)}"
       end
@@ -169,23 +157,26 @@ module Sensemaker
       def prepare_input_data
         conversation = job.conversation
         comments_prepared_count = 0
+        persisted_input_missing = job.read_attribute(:input_file).blank?
 
         if job.additional_context.blank?
           job.update!(additional_context: conversation.compile_context)
         end
 
-        if job.input_file.blank? && job.script.eql?("advanced_runner.ts")
+        if persisted_input_missing && job.script.eql?("advanced_runner.ts")
           comments_prepared_count = prepare_with_categorization_job
-        elsif job.input_file.blank? && job.script.eql?("single-html-build.js")
+        elsif persisted_input_missing && job.script.eql?("single-html-build.js")
           comments_prepared_count = prepare_with_advanced_runner_job
-        elsif job.input_file.blank?
+        elsif persisted_input_missing
           comments_prepared_count = conversation.comments.size
+          generated_input_path = job.input_file
           exporter = Sensemaker::CsvExporter.new(conversation)
-          exporter.export_to_csv(input_file)
+          exporter.export_to_csv(generated_input_path)
+          job.update!(input_file: generated_input_path)
         end
 
         if job.script.eql?("advanced_runner.ts")
-          comments_prepared_count = Sensemaker::CsvExporter.filter_zero_vote_comments_from_csv(input_file)
+          comments_prepared_count = Sensemaker::CsvExporter.filter_zero_vote_comments_from_csv(job.input_file)
         end
 
         comments_prepared_count
@@ -254,14 +245,14 @@ module Sensemaker
         if job.script == "single-html-build.js"
           return false unless file_exists?(Sensemaker::Paths.visualization_folder,
                                            description: "Visualization folder")
-          return false unless file_exists?(input_file + "-topic-stats.json",
+          return false unless file_exists?(job.input_file + "-topic-stats.json",
                                            description: "Input file - topic stats")
-          return false unless file_exists?(input_file + "-summary.json",
+          return false unless file_exists?(job.input_file + "-summary.json",
                                            description: "Input file - summary")
-          return false unless file_exists?(input_file + "-comments-with-scores.json",
+          return false unless file_exists?(job.input_file + "-comments-with-scores.json",
                                            description: "Input file - comments with scores")
         else
-          return false unless file_exists?(input_file, description: "Input file")
+          return false unless file_exists?(job.input_file, description: "Input file")
         end
 
         return false unless file_exists?(script_file, description: "Script file")
