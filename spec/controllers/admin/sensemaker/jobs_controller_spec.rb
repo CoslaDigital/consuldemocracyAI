@@ -29,9 +29,9 @@ describe Admin::Sensemaker::JobsController do
 
   describe "GET #download" do
     let(:job) { sensemaker_job }
+    let(:data_folder) { Sensemaker::Paths.sensemaker_data_folder.to_s }
 
     context "when artefact param is provided and valid" do
-      let(:data_folder) { Sensemaker::Paths.sensemaker_data_folder.to_s }
       let(:basename) { "artefact-#{SecureRandom.hex}.json" }
       let(:tmp_file) { File.join(data_folder, basename) }
 
@@ -47,6 +47,28 @@ describe Admin::Sensemaker::JobsController do
       end
 
       it "sends the requested artefact file" do
+        get :download, params: { id: job.id, artefact: basename }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.header["Content-Disposition"]).to include(basename)
+      end
+    end
+
+    context "when input artefact param is provided and valid" do
+      let(:basename) { "input-#{SecureRandom.hex}.csv" }
+      let(:tmp_file) { File.join(data_folder, basename) }
+
+      before do
+        FileUtils.mkdir_p(File.dirname(tmp_file))
+        File.write(tmp_file, "comment-id,comment_text\n1,test")
+        job.update!(input_file: tmp_file)
+      end
+
+      after do
+        FileUtils.rm_f(tmp_file)
+      end
+
+      it "sends the requested input artefact file" do
         get :download, params: { id: job.id, artefact: basename }
 
         expect(response).to have_http_status(:ok)
