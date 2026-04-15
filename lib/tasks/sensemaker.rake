@@ -1,3 +1,5 @@
+require "shellwords"
+
 namespace :sensemaker do
   desc "Setup Sensemaker Integration"
   task setup: :environment do
@@ -84,40 +86,61 @@ namespace :sensemaker do
       end
       logger.info "✓ sensemaker_data_folder found"
 
-      context = Llm::Config.context
-      if context.config.vertexai_project_id.blank?
+      config = runtime_config
+      unless config.supported?
+        logger.warn "✗ Sensemaker LLM provider is not supported. Current provider: " \
+                    "#{config.provider.presence || "(not set)"}."
+        abort "Error: Sensemaker LLM provider is not supported. Please check the logs."
+      end
+      logger.info "✓ Supported Sensemaker backend selected: #{config.backend}."
+
+      if config.backend == "vertex" && config.vertex_project_id.blank?
         logger.warn "✗ Vertex AI is not configured. Please set tenant secrets " \
                     "llm.vertexai_project_id (and optionally vertexai_location)."
         abort "Error: Vertex AI configuration not found. Please check the logs."
       end
-      logger.info "✓ Vertex AI configuration (context.config.vertexai_project_id) is present."
+      logger.info "✓ Backend configuration is present."
 
-      provider = Setting["llm.provider"].to_s
-      unless provider.downcase.include?("vertex")
-        logger.warn "✗ Sensemaker requires Vertex AI as the LLM provider. " \
-                    "Current provider: #{provider.presence || "(not set)"}. Set it in Admin → Settings → LLM."
-        abort "Error: Vertex AI must be selected as the LLM provider. Please check the logs."
-      end
-      logger.info "✓ Vertex AI is selected as the LLM provider."
-
-      if Setting["llm.model"].blank?
+      if config.model.blank?
         logger.warn "✗ Sensemaker requires an LLM model to be selected. Set it in Admin → Settings → LLM."
         abort "Error: No LLM model selected. Please check the logs."
       end
       logger.info "✓ LLM model is selected."
+
+      if config.backend == "openai-compatible" && config.api_key.blank?
+        logger.warn "✗ Sensemaker requires an API key for provider '#{config.compat_provider}'. " \
+                    "Set tenant secret llm.#{config.compat_provider}_api_key."
+        abort "Error: Missing API key for selected provider. Please check the logs."
+      end
+      logger.info "✓ Provider credentials are configured."
     end
 
     def check_sensemaker_cli(logger)
-      context = Llm::Config.context
+      config = runtime_config
 
       output_file = "#{Sensemaker::Paths.sensemaker_data_folder}/verify-output-#{Time.current.to_i}.txt"
       package_path = Sensemaker::Paths.sensemaker_package_folder
       runner_path = package_path.join("runner-cli/health_check_runner.ts")
 
-      command = %Q(npx ts-node #{runner_path} \
-        --vertexProject #{context.config.vertexai_project_id} \
-        --outputFile #{output_file} \
-        --modelName #{Setting["llm.model"]})
+      command_parts = ["npx ts-node #{runner_path}"]
+      command_parts << "--modelName #{Shellwords.escape(config.model)}" if config.model.present?
+
+      case config.backend
+      when "vertex"
+        command_parts << "--backend vertex"
+        command_parts << "--vertexProject #{Shellwords.escape(config.vertex_project_id)}"
+        command_parts << "--vertexLocation #{Shellwords.escape(config.vertex_location)}"
+      when "openai-compatible"
+        command_parts << "--backend openai-compatible"
+        command_parts << "--provider #{Shellwords.escape(config.compat_provider)}"
+        command_parts << "--apiKey #{Shellwords.escape(config.api_key)}" if config.api_key.present?
+      when "ollama"
+        command_parts << "--backend ollama"
+      end
+
+      command_parts << "--baseUrl #{Shellwords.escape(config.base_url)}" if config.base_url.present?
+      command_parts << "--outputFile #{Shellwords.escape(output_file)}"
+      command = command_parts.join(" ")
 
       full_command = "cd #{Rails.root} && #{command}"
 
@@ -291,7 +314,7 @@ namespace :sensemaker do
       add_feature_flag(logger)
 
       logger.info "Sensemaker setup complete!"
-      logger.info "Ensure tenant secrets include llm.vertexai_project_id (and optionally vertexai_location)."
+      logger.info "Ensure tenant LLM settings are configured for the selected provider."
       logger.info "To verify your installation, run: bundle exec rake sensemaker:verify"
     end
 
@@ -393,5 +416,9 @@ namespace :sensemaker do
         setting.update!(value: "true")
         logger.info "Sensemaker enabled using feature.sensemaker setting."
       end
+    end
+
+    def runtime_config
+      @runtime_config ||= Sensemaker::RuntimeConfig.new(setting: Setting, llm_context: Llm::Config.context)
     end
 end

@@ -42,8 +42,20 @@ module Sensemaker
       end
     end
 
-    def project_id
-      llm_context.config.vertexai_project_id.to_s
+    def sensemaker_backend
+      runtime_config.backend
+    end
+
+    def sensemaker_provider
+      runtime_config.compat_provider
+    end
+
+    def sensemaker_api_key
+      runtime_config.api_key
+    end
+
+    def sensemaker_base_url
+      runtime_config.base_url
     end
 
     def self.enabled?
@@ -63,13 +75,28 @@ module Sensemaker
                  npx ts-node single-html-build.js --outputFile #{output_file})
       end
 
-      model_name = Setting["llm.model"]
+      model_name = runtime_config.model
       additional_context = nil
       additional_context = job.additional_context.presence unless job.script == "health_check_runner.ts"
 
-      command = %Q(npx ts-node #{script_file} \
-                 --vertexProject #{project_id} \
-                 --modelName #{model_name})
+      command_parts = ["npx ts-node #{script_file}"]
+      command_parts << "--modelName #{Shellwords.escape(model_name)}" if model_name.present?
+
+      case sensemaker_backend
+      when "vertex"
+        command_parts << "--backend vertex"
+        command_parts << "--vertexProject #{Shellwords.escape(runtime_config.vertex_project_id)}"
+        command_parts << "--vertexLocation #{Shellwords.escape(runtime_config.vertex_location)}"
+      when "openai-compatible"
+        command_parts << "--backend openai-compatible"
+        command_parts << "--provider #{Shellwords.escape(sensemaker_provider)}"
+        command_parts << "--apiKey #{Shellwords.escape(sensemaker_api_key)}" if sensemaker_api_key.present?
+      when "ollama"
+        command_parts << "--backend ollama"
+      end
+      command_parts << "--baseUrl #{Shellwords.escape(sensemaker_base_url)}" if sensemaker_base_url.present?
+
+      command = command_parts.join(" ")
       command += " --inputFile #{job.input_file}" unless job.script == "health_check_runner.ts"
       if additional_context.present?
         command += " --additionalContext #{Shellwords.escape(additional_context.to_s)}"
@@ -87,6 +114,10 @@ module Sensemaker
 
       def llm_context
         @llm_context ||= Llm::Config.context
+      end
+
+      def runtime_config
+        @runtime_config ||= Sensemaker::RuntimeConfig.new(setting: Setting, llm_context: llm_context)
       end
 
       def execute_job_workflow
@@ -190,7 +221,7 @@ module Sensemaker
           return false
         end
 
-        if llm_context.config.vertexai_project_id.blank?
+        if sensemaker_backend == "vertex" && runtime_config.vertex_project_id.blank?
           message = "Vertex AI is not configured. Set tenant secrets llm.vertexai_project_id " \
                     "(and optionally vertexai_location)."
           job.update!(finished_at: Time.current, error: message)
@@ -198,17 +229,24 @@ module Sensemaker
           return false
         end
 
-        provider = Setting["llm.provider"].to_s
-        unless provider.downcase.include?("vertex")
-          message = "Sensemaker requires Vertex AI as the LLM provider. " \
-                    "Current provider: #{provider.presence || "(not set)"}. Set it in Admin → Settings → LLM."
+        if sensemaker_backend.blank?
+          message = "Sensemaker LLM provider is not supported. Current provider: " \
+                    "#{runtime_config.provider.presence || "(not set)"}."
           job.update!(finished_at: Time.current, error: message)
           Rails.logger.error(message)
           return false
         end
 
-        if Setting["llm.model"].blank?
+        if runtime_config.model.blank?
           message = "Sensemaker requires an LLM model to be selected. Set it in Admin → Settings → LLM."
+          job.update!(finished_at: Time.current, error: message)
+          Rails.logger.error(message)
+          return false
+        end
+
+        if sensemaker_backend == "openai-compatible" && sensemaker_api_key.blank?
+          message = "Sensemaker requires an API key for provider '#{sensemaker_provider}'. " \
+                    "Set tenant secret llm.#{sensemaker_provider}_api_key."
           job.update!(finished_at: Time.current, error: message)
           Rails.logger.error(message)
           return false
@@ -265,7 +303,7 @@ module Sensemaker
         target_folder = Sensemaker::Paths.visualization_folder if job.script == "single-html-build.js"
 
         command = "cd #{target_folder} && timeout #{TIMEOUT} #{build_command}"
-        Rails.logger.debug("Executing script: #{command}")
+        Rails.logger.debug("Executing script: #{redact_command(command)}")
         output = `#{command} 2>&1`
 
         result = process_exit_status
@@ -275,7 +313,7 @@ module Sensemaker
         else
           output = "Timeout: #{TIMEOUT} seconds\n#{output}" if result.eql?(124)
           output = output.truncate(20000)
-          message = "Command: #{command}\n\n#{output}"
+          message = "Command: #{redact_command(command)}\n\n#{output}"
           job.update!(finished_at: Time.current, error: message)
           Rails.logger.error("Sensemaker::JobRunner error: #{output}")
           nil
@@ -300,6 +338,10 @@ module Sensemaker
         job.update!(finished_at: Time.current, error: message)
         Rails.logger.error(message)
         false
+      end
+
+      def redact_command(command)
+        command.to_s.gsub(/--apiKey\s+\S+/, "--apiKey [REDACTED]")
       end
   end
 end
