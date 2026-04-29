@@ -24,6 +24,18 @@ module Sensemaker
       execute_job_workflow
     end
 
+    def max_attempts
+      1
+    end
+
+    def output_file_name
+      job.output_file_name
+    end
+
+    def output_file
+      "#{Sensemaker::Paths.sensemaker_data_folder}/#{output_file_name}"
+    end
+
     def sensemaker_adapter
       runtime_config.adapter
     end
