@@ -20,6 +20,11 @@ module Sensemaker
       "Budget::Group"
     ].freeze
 
+    PUBLISHABLE_SCRIPTS = [
+      "single-html-build.js",
+      "runner.ts"
+    ].freeze
+
     validates :analysable_type, inclusion: { in: ANALYSABLE_TYPES }
     validates :script, inclusion: { in: SCRIPTS }, allow_nil: true
 
@@ -30,6 +35,7 @@ module Sensemaker
 
     validates :analysable_type, presence: true
     validates :analysable_id, presence: true, unless: -> { analysable_type == "Proposal" }
+    validate :publishing_is_allowed
 
     belongs_to :analysable, polymorphic: true, optional: true
 
@@ -270,6 +276,14 @@ module Sensemaker
 
       def required_output_artefact_paths
         [primary_artefact_path]
+      end
+
+      def publishing_is_allowed
+        return unless published? && published_changed? && !published_was
+
+        unless publishable?
+          errors.add(:published, :not_publishable, message: "cannot be published")
+        end
       end
 
       def set_persisted_output_if_successful
