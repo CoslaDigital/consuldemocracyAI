@@ -177,6 +177,43 @@ module Sensemaker
       input_artefact_paths.select { |path| File.exist?(path) }
     end
 
+    def existing_output_artefact_paths
+      output_artefact_paths.select { |path| File.exist?(path) }
+    end
+
+    def input_file
+      current_input_file = read_attribute(:input_file)
+      if current_input_file.present?
+        current_input_file
+      elsif script == "advanced_runner.ts"
+        "#{Sensemaker::Paths.sensemaker_data_folder}/categorization-output-#{id}.csv"
+      elsif script == "single-html-build.js"
+        "#{Sensemaker::Paths.sensemaker_data_folder}/advanced-output"
+      else
+        "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{id}.csv"
+      end
+    end
+
+    def input_artefact_paths
+      base_path = input_file.to_s
+      return [] if base_path.blank?
+
+      case script
+      when "single-html-build.js"
+        [
+          "#{base_path}-topic-stats.json",
+          "#{base_path}-summary.json",
+          "#{base_path}-comments-with-scores.json"
+        ]
+      else
+        [base_path]
+      end
+    end
+
+    def existing_input_artefact_paths
+      input_artefact_paths.select { |path| File.exist?(path) }
+    end
+
     def has_outputs?
       required_paths = required_output_artefact_paths
       required_paths.all? { |path| File.exist?(path) }
