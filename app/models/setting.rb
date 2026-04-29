@@ -93,6 +93,7 @@ class Setting < ApplicationRecord
         "feature.gdpr.require_consent_for_notifications": true,
         "feature.gdpr.require_consent_for_embedded_videos": false,
         "feature.gdpr.warning_for_external_links": false,
+        "feature.sensemaker": false,
         "homepage.widgets.feeds.debates": true,
         "homepage.widgets.feeds.processes": true,
         "homepage.widgets.feeds.proposals": true,
