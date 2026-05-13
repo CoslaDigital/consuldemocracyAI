@@ -32,6 +32,7 @@ describe Sensemaker::JobRunner do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
     before do
+      FileUtils.mkdir_p(Sensemaker::Paths.sensemaker_package_folder)
       allow(File).to receive(:exist?).and_return(true)
       allow(service).to receive(:system).with("which node > /dev/null 2>&1").and_return(true)
       allow(service).to receive(:system).with("which npx > /dev/null 2>&1").and_return(true)
@@ -153,7 +154,7 @@ describe Sensemaker::JobRunner do
       "apis.google_application_credentials is set but key file does not exist" => [
         -> {
           allow(Rails.application.secrets).to receive(:google_application_credentials)
-            .and_return("/nonexistent/key.json")
+          .and_return("/nonexistent/key.json")
           allow(File).to receive(:exist?).with("/nonexistent/key.json").and_return(false)
           allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
           allow(File).to receive(:exist?).with(job.input_file).and_return(true)
@@ -355,12 +356,16 @@ describe Sensemaker::JobRunner do
   describe "#script_file" do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
+    package_folder = Sensemaker::Paths.sensemaker_package_folder
+    runner_cli = "#{package_folder}/runner-cli"
+    viz_folder = Sensemaker::Paths.visualization_folder
+
     {
-      "categorization_runner.ts" => "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/categorization_runner.ts",
-      "runner.ts" => "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/runner.ts",
-      "advanced_runner.ts" => "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/advanced_runner.ts",
-      "health_check_runner.ts" => "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/health_check_runner.ts",
-      "single-html-build.js" => "#{Sensemaker::Paths.visualization_folder}/single-html-build.js"
+      "categorization_runner.ts" => "#{runner_cli}/categorization_runner.ts",
+      "runner.ts" => "#{runner_cli}/runner.ts",
+      "advanced_runner.ts" => "#{runner_cli}/advanced_runner.ts",
+      "health_check_runner.ts" => "#{runner_cli}/health_check_runner.ts",
+      "single-html-build.js" => "#{viz_folder}/single-html-build.js"
     }.each do |script, expected_path|
       it "returns the correct path for #{script}" do
         job.script = script
