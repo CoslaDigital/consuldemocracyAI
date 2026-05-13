@@ -299,7 +299,7 @@ module Sensemaker
       end
 
       def execute_script
-        target_folder = Sensemaker::Paths.sensemaker_folder
+        target_folder = Sensemaker::Paths.sensemaker_package_folder
         target_folder = Sensemaker::Paths.visualization_folder if job.script == "single-html-build.js"
 
         command = "cd #{target_folder} && timeout #{TIMEOUT} #{build_command}"
