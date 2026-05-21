@@ -7,17 +7,19 @@ describe Sensemaker::JobRunner do
     create(:sensemaker_job,
            analysable_type: "Debate",
            analysable_id: debate.id,
-           script: "categorization_runner.ts",
+           script: "categorize",
            user: user,
            started_at: Time.current,
-           additional_context: "")
+           additional_context: "Debate context for categorization")
   end
+  let(:cli_path) { "/tmp/sensemaking-categorize" }
 
   shared_context "sensemaker paths stubbed" do
     let(:data_folder) { "/tmp/sensemaker_test_folder/data" }
 
     before do
-      allow(Sensemaker::Paths).to receive(:sensemaker_data_folder).and_return(data_folder)
+      allow(Sensemaker::Paths).to receive_messages(sensemaker_data_folder: data_folder,
+                                                   sensemaking_cli: cli_path)
     end
   end
 
@@ -32,16 +34,12 @@ describe Sensemaker::JobRunner do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
     before do
-      FileUtils.mkdir_p(Sensemaker::Paths.sensemaker_package_folder)
       allow(File).to receive(:exist?).and_return(true)
-      allow(service).to receive(:system).with("which node > /dev/null 2>&1").and_return(true)
-      allow(service).to receive(:system).with("which npx > /dev/null 2>&1").and_return(true)
       allow(service).to receive(:check_dependencies?).and_return(true)
     end
 
     it "runs the complete workflow successfully" do
-      allow(File).to receive(:exist?).and_return(true)
-      allow(service).to receive(:system).and_return(true)
+      allow(service).to receive(:execute_script).and_return("ok")
 
       service.run
 
@@ -58,7 +56,7 @@ describe Sensemaker::JobRunner do
     end
 
     it "stops if execute_script returns false" do
-      expect(service).to receive(:execute_script).and_return(false)
+      expect(service).to receive(:execute_script).and_return(nil)
 
       service.run
     end
@@ -83,18 +81,14 @@ describe Sensemaker::JobRunner do
         vertexai_location: "global",
         openai_api_key: "openai-secret",
         openai_api_base: "https://openai-proxy.example.com/v1",
-        together_api_base: "https://api.together.xyz/v1",
-        mistral_api_base: "https://api.mistral.ai/v1",
-        ollama_api_base: "http://localhost:11434",
-        together_api_key: "together-secret",
         mistral_api_key: "mistral-secret"
       )
     end
     let(:llm_context) { double("LLM context", config: llm_config) }
 
+    include_context "sensemaker paths stubbed"
+
     before do
-      allow(service).to receive(:system).with("which node > /dev/null 2>&1").and_return(true)
-      allow(service).to receive(:system).with("which npx > /dev/null 2>&1").and_return(true)
       allow(File).to receive(:exist?).and_return(true)
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Setting).to receive(:[]).and_call_original
@@ -107,6 +101,15 @@ describe Sensemaker::JobRunner do
       expect(result).to be true
     end
 
+    it "returns false for report_ui with a clear message" do
+      job.script = "report_ui"
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be false
+      job.reload
+      expect(job.error).to include("Interactive report build is not available yet")
+    end
+
     {
       "sensemaker_data_folder is not configured" => [
         -> { allow(Tenant.current_secrets).to receive(:sensemaker_data_folder).and_return(nil) },
@@ -117,26 +120,12 @@ describe Sensemaker::JobRunner do
         "Vertex AI is not configured"
       ],
       "LLM provider is unsupported" => [
-        -> { allow(Setting).to receive(:[]).with("llm.provider").and_return("Unsupported") },
+        -> { allow(Setting).to receive(:[]).with("llm.provider").and_return("ollama") },
         "Sensemaker LLM provider is not supported"
       ],
       "LLM model is not selected" => [
         -> { allow(Setting).to receive(:[]).with("llm.model").and_return(nil) },
         "Sensemaker requires an LLM model to be selected"
-      ],
-      "Node.js is not available" => [
-        -> { allow(service).to receive(:system).with("which node > /dev/null 2>&1").and_return(false) },
-        "Node.js not found"
-      ],
-      "NPX is not available" => [
-        -> { allow(service).to receive(:system).with("which npx > /dev/null 2>&1").and_return(false) },
-        "NPX not found"
-      ],
-      "the sensemaking-tools package folder does not exist" => [
-        -> {
-          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(false)
-        },
-        "sensemaking-tools package folder not found"
       ],
       "the sensemaking data folder does not exist" => [
         -> {
@@ -146,7 +135,8 @@ describe Sensemaker::JobRunner do
       ],
       "the input file does not exist" => [
         -> {
-          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
+          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_data_folder).and_return(true)
+          allow(File).to receive(:exist?).with(cli_path).and_return(true)
           allow(File).to receive(:exist?).with(job.input_file).and_return(false)
         },
         "Input file not found"
@@ -156,18 +146,18 @@ describe Sensemaker::JobRunner do
           allow(Rails.application.secrets).to receive(:google_application_credentials)
           .and_return("/nonexistent/key.json")
           allow(File).to receive(:exist?).with("/nonexistent/key.json").and_return(false)
-          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
+          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_data_folder).and_return(true)
+          allow(File).to receive(:exist?).with(cli_path).and_return(true)
           allow(File).to receive(:exist?).with(job.input_file).and_return(true)
         },
         "Key file (apis.google_application_credentials) not found"
       ],
-      "the script file does not exist" => [
+      "the CLI executable does not exist" => [
         -> {
-          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_package_folder).and_return(true)
-          allow(File).to receive(:exist?).with(job.input_file).and_return(true)
-          allow(File).to receive(:exist?).with(service.script_file).and_return(false)
+          allow(File).to receive(:exist?).with(Sensemaker::Paths.sensemaker_data_folder).and_return(true)
+          allow(File).to receive(:exist?).with(cli_path).and_return(false)
         },
-        "Script file not found"
+        "Sensemaker CLI (categorize) not found"
       ]
     }.each do |description, (setup, error_substring)|
       it "returns false when #{description}" do
@@ -197,21 +187,35 @@ describe Sensemaker::JobRunner do
       job.reload
       expect(job.error).to include("Sensemaker requires an API key for provider 'openai'")
     end
+
+    context "when script is health_check" do
+      let(:job) { create(:sensemaker_job, :health_check, user: user) }
+
+      it "does not require an input file" do
+        allow(File).to receive(:exist?).with(job.input_file).and_return(false)
+
+        result = service.send(:check_dependencies?)
+        expect(result).to be true
+      end
+    end
   end
 
   describe "#execute_script" do
     let(:service) { Sensemaker::JobRunner.new(job) }
+
+    include_context "sensemaker paths stubbed"
 
     before do
       allow(File).to receive(:exist?).and_return(true)
       allow(Setting).to receive(:[]).and_call_original
       allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
       allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      allow(FileUtils).to receive(:mkdir_p)
     end
 
     it "returns value when the script executes successfully" do
       timeout = Sensemaker::JobRunner::TIMEOUT
-      expected_command = %r{cd .* && timeout #{timeout} .*}
+      expected_command = %r{cd .*job-#{job.id}.* && timeout #{timeout} .*sensemaking-categorize}
       expect(service).to receive(:`).with(expected_command).and_return("Success output")
 
       allow(service).to receive(:process_exit_status).and_return(0)
@@ -238,21 +242,52 @@ describe Sensemaker::JobRunner do
       expect(job.error).to include("Error output")
     end
 
-    it "redacts api keys in stored command errors" do
+    it "keeps the end of long CLI output in job.error" do
+      suffix = "FINAL_ERROR: something broke at the end"
+      long_output = ("x" * (Sensemaker::JobRunner::MAX_CLI_ERROR_OUTPUT + 1)) + suffix
       timeout = Sensemaker::JobRunner::TIMEOUT
-      expected_command = %r{cd .* && timeout #{timeout} .*--apiKey super-secret-key.*}
-      expect(service).to receive(:`).with(expected_command).and_return("Error output")
+      expect(service).to receive(:`).with(%r{cd .* && timeout #{timeout} }).and_return(long_output)
+      allow(service).to receive(:process_exit_status).and_return(1)
+
+      service.send(:execute_script)
+      job.reload
+
+      expect(job.error).to include("FINAL_ERROR: something broke at the end")
+      expect(job.error).to include("[output truncated; showing end of log]")
+      expect(job.error.length).to be <= Sensemaker::JobRunner::MAX_CLI_ERROR_OUTPUT + 500
+    end
+
+    it "redacts api keys in stored command errors" do
+      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
       allow(service).to receive_messages(
         sensemaker_adapter: "openai-compatible",
         sensemaker_provider: "openai",
         sensemaker_api_key: "super-secret-key",
         process_exit_status: 1
       )
+      expect(service).to receive(:`).with(%r{--api_key super-secret-key}).and_return("Error output")
 
       service.send(:execute_script)
       job.reload
-      expect(job.error).to include("--apiKey [REDACTED]")
+      expect(job.error).to include("--api_key [REDACTED]")
       expect(job.error).not_to include("super-secret-key")
+    end
+  end
+
+  describe "#truncate_cli_output" do
+    let(:service) { Sensemaker::JobRunner.new(job) }
+
+    it "returns short output unchanged" do
+      expect(service.send(:truncate_cli_output, "short error")).to eq("short error")
+    end
+
+    it "keeps the tail of long output" do
+      suffix = "Traceback: real failure"
+      long = ("x" * 250) + suffix
+      result = service.send(:truncate_cli_output, long, max_length: 200)
+
+      expect(result).to end_with(suffix)
+      expect(result).to include("[output truncated; showing end of log]")
     end
   end
 
@@ -265,46 +300,67 @@ describe Sensemaker::JobRunner do
         vertexai_location: "global",
         openai_api_key: "openai-secret",
         openai_api_base: "https://openai-proxy.example.com/v1",
-        together_api_base: "https://api.together.xyz/v1",
-        mistral_api_base: "https://api.mistral.ai/v1",
-        ollama_api_base: "http://localhost:11434",
-        together_api_key: "together-secret",
         mistral_api_key: "mistral-secret"
       )
     end
     let(:llm_context) { double("LLM context", config: llm_config) }
+
+    include_context "sensemaker paths stubbed"
 
     before do
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Setting).to receive(:[]).and_call_original
       allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
       allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      job[:input_file] = "#{data_folder}/job-#{job.id}/input.csv"
     end
 
-    shared_examples "runner command with common flags" do |script_name, use_output_file_flag: true|
-      it "returns the correct command for #{script_name}" do
-        service.job.script = script_name
+    shared_examples "python runner command" do |script_name, cli_name|
+      it "builds the #{script_name} command with Python flags" do
+        allow(Sensemaker::Paths).to receive(:sensemaking_cli).with(cli_name).and_return("/tmp/#{cli_name}")
+        job.script = script_name
+
         command = service.build_command
-        expect(command).to include("npx ts-node #{service.script_file}")
+
+        expect(command).to include("/tmp/#{cli_name}")
         expect(command).to include("--adapter vertex")
-        expect(command).to include("--vertexProject sensemaker-466109")
-        expect(command).to include("--vertexLocation global")
-        expect(command).to include("--modelName gemini-2.5-flash-lite")
-        expect(command).not_to include("--keyFilename")
-        expect(command).not_to include("--baseUrl")
-        expect(command).to include("--inputFile #{job.input_file}")
-        if use_output_file_flag
-          expect(command).to include("--outputFile #{service.output_file}")
-        else
-          expect(command).not_to include("--outputFile")
-          expect(command).to include("--outputBasename #{service.output_file}")
-        end
+        expect(command).to include("--vertex_project sensemaker-466109")
+        expect(command).to include("--vertex_location global")
+        expect(command).to include("--model_name gemini-2.5-flash-lite")
       end
     end
 
-    it_behaves_like "runner command with common flags", "categorization_runner.ts", use_output_file_flag: true
-    it_behaves_like "runner command with common flags", "advanced_runner.ts", use_output_file_flag: false
-    it_behaves_like "runner command with common flags", "runner.ts", use_output_file_flag: false
+    it_behaves_like "python runner command", "categorize", "sensemaking-categorize"
+    it_behaves_like "python runner command", "bridge_scores", "sensemaking-bridge-scores"
+    it_behaves_like "python runner command", "report_text", "sensemaking-report-text"
+    it_behaves_like "python runner command", "health_check", "sensemaking-health-check"
+
+    it "includes categorize input and output paths" do
+      command = service.build_command
+
+      expect(command).to include("--input_file")
+      expect(command).to include("--output_dir")
+      expect(command).to include(job.input_file)
+      expect(command).to include("#{data_folder}/job-#{job.id}")
+    end
+
+    it "includes inline additional_context for categorize" do
+      command = service.build_command
+
+      expect(command).to include("--additional_context")
+      expect(command).to include(Shellwords.escape("Debate context for categorization"))
+    end
+
+    it "omits additional_context for health_check" do
+      job.script = "health_check"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-health-check").and_return("/tmp/sensemaking-health-check")
+
+      command = service.build_command
+
+      expect(command).not_to include("--additional_context")
+      expect(command).to include("--output_file")
+    end
 
     it "returns the correct command for OpenAI-compatible providers" do
       allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
@@ -312,65 +368,22 @@ describe Sensemaker::JobRunner do
       command = service.build_command
       expect(command).to include("--adapter openai-compatible")
       expect(command).to include("--provider openai")
-      expect(command).to include("--apiKey openai-secret")
-      expect(command).to include("--baseUrl https://openai-proxy.example.com/v1")
-      expect(command).not_to include("--vertexProject")
-      expect(command).not_to include("--vertexLocation")
+      expect(command).to include("--api_key openai-secret")
+      expect(command).to include("--base_url https://openai-proxy.example.com/v1")
+      expect(command).not_to include("--vertex_project")
     end
 
-    it "omits baseUrl for OpenAI-compatible providers when not configured" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
-      allow(llm_config).to receive(:openai_api_base).and_return(nil)
-
-      command = service.build_command
-      expect(command).not_to include("--baseUrl")
-    end
-
-    it "returns the correct command for ollama provider" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("ollama")
-
-      command = service.build_command
-      expect(command).to include("--adapter ollama")
-      expect(command).to include("--baseUrl http://localhost:11434")
-      expect(command).not_to include("--provider")
-      expect(command).not_to include("--apiKey")
-      expect(command).not_to include("--vertexProject")
-    end
-
-    it "returns the correct command for the single-html-build script" do
-      service.job.update!(script: "single-html-build.js")
-      allow(service.job.conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+    it "includes bridge_scores flags" do
+      job.script = "bridge_scores"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-bridge-scores").and_return("/tmp/sensemaking-bridge-scores")
 
       command = service.build_command
 
-      expect(command).to include("npx ts-node site-build.ts")
-      expect(command).to include("--topics #{job.input_file}-topic-stats.json")
-      expect(command).to include("--summary #{job.input_file}-summary.json")
-      expect(command).to include("--comments #{job.input_file}-comments-with-scores.json")
-      expect(command).to include('--reportTitle "Report for Test Label"')
-
-      expect(command).to include("npx ts-node single-html-build.js --outputFile #{service.output_file}")
-    end
-  end
-
-  describe "#script_file" do
-    let(:service) { Sensemaker::JobRunner.new(job) }
-
-    package_folder = Sensemaker::Paths.sensemaker_package_folder
-    runner_cli = "#{package_folder}/runner-cli"
-    viz_folder = Sensemaker::Paths.visualization_folder
-
-    {
-      "categorization_runner.ts" => "#{runner_cli}/categorization_runner.ts",
-      "runner.ts" => "#{runner_cli}/runner.ts",
-      "advanced_runner.ts" => "#{runner_cli}/advanced_runner.ts",
-      "health_check_runner.ts" => "#{runner_cli}/health_check_runner.ts",
-      "single-html-build.js" => "#{viz_folder}/single-html-build.js"
-    }.each do |script, expected_path|
-      it "returns the correct path for #{script}" do
-        job.script = script
-        expect(service.script_file).to eq(expected_path)
-      end
+      expect(command).to include("--input_csv")
+      expect(command).to include("--output_csv")
+      expect(command).to include("--scorer_type GEMINI")
+      expect(command).not_to include("--additional_context")
     end
   end
 
@@ -380,8 +393,6 @@ describe Sensemaker::JobRunner do
 
     before do
       allow(File).to receive(:exist?).and_return(true)
-      allow(service).to receive(:system).with("which node > /dev/null 2>&1").and_return(true)
-      allow(service).to receive(:system).with("which npx > /dev/null 2>&1").and_return(true)
       allow(service).to receive_messages(check_dependencies?: true, execute_script: "success")
       allow(service).to receive(:prepare_input_data)
     end
@@ -408,8 +419,7 @@ describe Sensemaker::JobRunner do
       end
 
       it "triggers the callback to set persisted_output (relative path for deploy safety)" do
-        job.script = "categorization_runner.ts"
-        output_path = "#{data_folder}/categorization-output-#{job.id}.csv"
+        output_path = "#{data_folder}/job-#{job.id}/categorized_without_other_filtered.csv"
         allow(File).to receive(:exist?).with(output_path).and_return(true)
         allow(job).to receive(:has_outputs?).and_return(true)
 
@@ -430,54 +440,17 @@ describe Sensemaker::JobRunner do
         expect(job.finished_at).to be_present
         expect(job.error).to eq("Output file(s) not found")
       end
-
-      it "does not set persisted_output" do
-        allow(job).to receive(:has_outputs?).and_return(false)
-
-        service.send(:execute_job_workflow)
-
-        job.reload
-        expect(job.persisted_output).to be(nil)
-      end
     end
-
-    shared_examples "checks all output files exist and sets persisted_output" do |script_name, path_suffixes|
-      before do
-        job.update!(script: script_name)
-        allow(service).to receive_messages(check_dependencies?: true, execute_script: "success")
-        allow(service).to receive(:prepare_input_data)
-      end
-
-      it "checks all output files exist" do
-        base_path = "#{data_folder}/output-#{job.id}"
-        path_suffixes.each do |suffix|
-          allow(File).to receive(:exist?).with("#{base_path}#{suffix}").and_return(true)
-        end
-
-        service.send(:execute_job_workflow)
-
-        job.reload
-        expect(job.finished_at).to be_present
-        expect(job.error).to be(nil)
-        expect(job.persisted_output).to eq(job.relative_output_path)
-      end
-    end
-
-    it_behaves_like "checks all output files exist and sets persisted_output",
-                    "advanced_runner.ts",
-                    %w[-summary.json -topic-stats.json -comments-with-scores.json]
-
-    it_behaves_like "checks all output files exist and sets persisted_output",
-                    "runner.ts",
-                    %w[-summary.json -summary.html -summary.md -summaryAndSource.csv]
   end
 
   describe "#prepare_input_data" do
     let(:service) { Sensemaker::JobRunner.new(job) }
     let(:mock_exporter) { instance_double(Sensemaker::CsvExporter) }
-    let(:input_file_path) { "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{job.id}.csv" }
+    let(:input_file_path) { "#{Sensemaker::Paths.sensemaker_data_folder}/job-#{job.id}/input.csv" }
     let(:mock_conversation) { instance_double(Sensemaker::Conversation) }
     let(:mock_comments) { Array.new(7) { double("comment") } }
+
+    include_context "sensemaker paths stubbed"
 
     before do
       allow(Sensemaker::CsvExporter).to receive(:new).and_return(mock_exporter)
@@ -487,6 +460,7 @@ describe Sensemaker::JobRunner do
         comments: mock_comments,
         compile_context: "Test context"
       )
+      allow(FileUtils).to receive(:mkdir_p)
     end
 
     it "creates a CsvExporter with the job's conversation" do
@@ -495,7 +469,7 @@ describe Sensemaker::JobRunner do
       expect(Sensemaker::CsvExporter).to have_received(:new).with(mock_conversation)
     end
 
-    it "exports CSV data to the input file" do
+    it "exports CSV data to default_input_csv" do
       service.send(:prepare_input_data)
 
       expect(mock_exporter).to have_received(:export_to_csv).with(input_file_path)
@@ -506,10 +480,11 @@ describe Sensemaker::JobRunner do
 
       service.send(:prepare_input_data)
 
-      expect(job.reload.input_file).to eq(input_file_path)
+      expect(job.reload.read_attribute(:input_file)).to eq(input_file_path)
     end
 
-    it "updates the job with additional context" do
+    it "updates the job with additional context when blank" do
+      job.update!(additional_context: "")
       allow(job).to receive(:conversation).and_call_original
 
       service.send(:prepare_input_data)
@@ -521,89 +496,49 @@ describe Sensemaker::JobRunner do
     end
 
     it "returns the count of comments from conversation when input_file is blank" do
-      job.input_file = nil
       result = service.send(:prepare_input_data)
 
       expect(result).to eq(7)
     end
 
-    context "when script is advanced_runner.ts" do
-      before do
-        job.script = "advanced_runner.ts"
-        job.input_file = "/tmp/categorization-output.csv"
-        allow(File).to receive(:exist?).with(job.input_file).and_return(true)
-      end
-
-      it "calls CsvExporter.filter_zero_vote_comments_from_csv" do
-        expect(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(job.input_file).and_return(3)
-        service.send(:prepare_input_data)
-      end
-
-      it "returns the filtered count from filter_zero_vote_comments_from_csv" do
-        allow(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(job.input_file).and_return(3)
-        result = service.send(:prepare_input_data)
-
-        expect(result).to eq(3)
-      end
-    end
-
-    context "when script is advanced_runner.ts with blank input_file" do
-      let(:categorization_job) { create(:sensemaker_job, comments_analysed: 10) }
-      let(:categorization_runner) { instance_double(Sensemaker::JobRunner) }
+    context "when script is bridge_scores with blank input_file" do
+      let(:job) { create(:sensemaker_job, :bridge_scores, user: user, additional_context: "ctx") }
+      let(:categorization_job) { create(:sensemaker_job, :categorize, user: user, comments_analysed: 10) }
 
       before do
-        job.script = "advanced_runner.ts"
-        job.input_file = nil
-        allow(File).to receive(:exist?).with(job.input_file).and_return(true)
-      end
-
-      it "calls prepare_with_categorization_job and then filters the CSV" do
         allow(service).to receive(:prepare_with_categorization_job).and_return(10)
-        allow(Sensemaker::CsvExporter).to receive(:filter_zero_vote_comments_from_csv)
-          .with(job.input_file).and_return(8)
+        allow(categorization_job).to receive(:categorize_output_csv).and_return("/tmp/categorized.csv")
+      end
+
+      it "calls prepare_with_categorization_job" do
+        service.send(:prepare_input_data)
+
+        expect(service).to have_received(:prepare_with_categorization_job)
+      end
+    end
+
+    context "when script is report_text with blank input_file" do
+      let(:job) { create(:sensemaker_job, :report_text, user: user) }
+
+      it "calls prepare_with_bridge_scores_job" do
+        allow(service).to receive(:prepare_with_bridge_scores_job).and_return(8)
 
         result = service.send(:prepare_input_data)
 
+        expect(service).to have_received(:prepare_with_bridge_scores_job)
         expect(result).to eq(8)
-        expect(Sensemaker::CsvExporter).to have_received(:filter_zero_vote_comments_from_csv)
-          .with(job.input_file)
       end
     end
 
-    context "when script is single-html-build.js with blank input_file" do
-      let(:advanced_job) { create(:sensemaker_job, comments_analysed: 15) }
-
+    context "when input_file is already set" do
       before do
-        job.script = "single-html-build.js"
-        job.input_file = nil
+        job[:input_file] = "/existing/input.csv"
       end
 
-      it "calls prepare_with_advanced_runner_job and returns its comments_analysed count" do
-        allow(service).to receive(:prepare_with_advanced_runner_job).and_return(15)
-
-        result = service.send(:prepare_input_data)
-
-        expect(result).to eq(15)
-      end
-    end
-
-    context "when input_file is already set for non-advanced_runner script" do
-      before do
-        job.script = "categorization_runner.ts"
-        job.input_file = "/existing/input.csv"
-      end
-
-      it "returns 0 when input_file is already set" do
+      it "returns 0 and does not export CSV" do
         result = service.send(:prepare_input_data)
 
         expect(result).to eq(0)
-      end
-
-      it "does not export CSV when input_file is already set" do
-        service.send(:prepare_input_data)
-
         expect(mock_exporter).not_to have_received(:export_to_csv)
       end
     end
