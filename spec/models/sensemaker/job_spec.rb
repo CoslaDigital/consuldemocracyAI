@@ -7,7 +7,7 @@ describe Sensemaker::Job do
     create(:sensemaker_job,
            analysable_type: "Debate",
            analysable_id: debate.id,
-           script: "categorization_runner.ts",
+           script: "categorize",
            user: user,
            started_at: Time.current,
            additional_context: "Test context")
@@ -15,9 +15,11 @@ describe Sensemaker::Job do
 
   shared_context "sensemaker paths stubbed" do
     let(:data_folder) { "/tmp/sensemaker_test_folder/data" }
+    let(:relative_data_folder) { "tmp/sensemaker_test_folder/data" }
 
     before do
-      allow(Sensemaker::Paths).to receive(:sensemaker_data_folder).and_return(data_folder)
+      allow(Sensemaker::Paths).to receive_messages(sensemaker_data_folder: data_folder,
+                                                   sensemaker_relative_data_folder: relative_data_folder)
     end
   end
 
@@ -41,6 +43,17 @@ describe Sensemaker::Job do
       job.analysable_id = nil
       expect(job).to be_valid
     end
+
+    it "rejects unknown script values" do
+      job.script = "runner.ts"
+      expect(job).not_to be_valid
+      expect(job.errors[:script]).to be_present
+    end
+
+    it "allows nil script" do
+      job.script = nil
+      expect(job).to be_valid
+    end
   end
 
   describe "associations" do
@@ -50,36 +63,50 @@ describe Sensemaker::Job do
   end
 
   describe "instance methods" do
+    describe "#work_dir" do
+      include_context "sensemaker paths stubbed"
+
+      it "returns a flat per-job directory under the data folder" do
+        expect(job.work_dir).to eq("#{data_folder}/job-#{job.id}")
+      end
+    end
+
     describe "#has_multiple_outputs?" do
-      it "returns true for advanced_runner.ts and runner.ts" do
-        job.script = "advanced_runner.ts"
-        expect(job.has_multiple_outputs?).to be true
-        job.script = "runner.ts"
+      it "returns true for report_text" do
+        job.script = "report_text"
         expect(job.has_multiple_outputs?).to be true
       end
 
       it "returns false for single output scripts" do
-        job.script = "categorization_runner.ts"
-        expect(job.has_multiple_outputs?).to be false
-        job.script = "health_check_runner.ts"
-        expect(job.has_multiple_outputs?).to be false
-        job.script = "single-html-build.js"
-        expect(job.has_multiple_outputs?).to be false
+        %w[categorize bridge_scores health_check report_ui].each do |script_name|
+          job.script = script_name
+          expect(job.has_multiple_outputs?).to be false
+        end
       end
     end
 
     describe "#output_file_name" do
       {
-        "categorization_runner.ts" => ->(j) { "categorization-output-#{j.id}.csv" },
-        "advanced_runner.ts" => ->(j) { "output-#{j.id}" },
-        "runner.ts" => ->(j) { "output-#{j.id}" },
-        "health_check_runner.ts" => ->(j) { "health-check-#{j.id}.txt" },
-        "single-html-build.js" => ->(j) { "report-#{j.id}.html" }
-      }.each do |script, expected_fn|
-        it "returns the correct output file name for #{script}" do
+        "categorize" => "categorized_without_other_filtered.csv",
+        "bridge_scores" => "bridging_scores.csv",
+        "report_text" => "report_data.json",
+        "health_check" => "health-check.txt",
+        "report_ui" => "report.html"
+      }.each do |script, basename|
+        it "returns the primary artefact basename for #{script}" do
           job.script = script
-          expect(job.output_file_name).to eq(expected_fn.call(job))
+          expect(job.output_file_name).to eq(basename)
         end
+      end
+    end
+
+    describe "#primary_artefact_path" do
+      include_context "sensemaker paths stubbed"
+
+      it "joins work_dir with output_file_name" do
+        expect(job.primary_artefact_path).to eq(
+          "#{data_folder}/job-#{job.id}/categorized_without_other_filtered.csv"
+        )
       end
     end
 
@@ -135,40 +162,23 @@ describe Sensemaker::Job do
     describe "#default_output_path" do
       include_context "sensemaker paths stubbed"
 
-      {
-        "categorization_runner.ts" => ->(j, df) { "#{df}/categorization-output-#{j.id}.csv" },
-        "advanced_runner.ts" => ->(j, df) { "#{df}/output-#{j.id}" },
-        "runner.ts" => ->(j, df) { "#{df}/output-#{j.id}" }
-      }.each do |script, expected_path_fn|
-        it "returns the correct path for #{script}" do
-          job.script = script
-          expect(job.default_output_path).to eq(expected_path_fn.call(job, data_folder))
-        end
+      it "returns primary_artefact_path" do
+        job.script = "bridge_scores"
+        expect(job.default_output_path).to eq(
+          "#{data_folder}/job-#{job.id}/bridging_scores.csv"
+        )
       end
     end
 
     describe "#relative_output_path" do
-      let(:relative_data_folder) { "tmp/sensemaker_test_folder/data" }
-
-      before do
-        allow(Sensemaker::Paths).to receive(:sensemaker_relative_data_folder).and_return(relative_data_folder)
-      end
+      include_context "sensemaker paths stubbed"
 
       it "returns a path relative to Rails.root (no leading slash)" do
-        job.script = "categorization_runner.ts"
         path = job.relative_output_path
-        expect(path).to eq("#{relative_data_folder}/categorization-output-#{job.id}.csv")
+        expect(path).to eq(
+          "#{relative_data_folder}/job-#{job.id}/categorized_without_other_filtered.csv"
+        )
         expect(path).not_to start_with("/")
-      end
-
-      {
-        "advanced_runner.ts" => ->(j, rel_df) { "#{rel_df}/output-#{j.id}" },
-        "single-html-build.js" => ->(j, rel_df) { "#{rel_df}/report-#{j.id}.html" }
-      }.each do |script, expected_path_fn|
-        it "returns the correct relative path for #{script}" do
-          job.script = script
-          expect(job.relative_output_path).to eq(expected_path_fn.call(job, relative_data_folder))
-        end
       end
     end
 
@@ -181,86 +191,64 @@ describe Sensemaker::Job do
       end
 
       it "resolves relative persisted_output against Rails.root so path survives deploys" do
-        relative_path = "tmp/sensemaker_test_folder/data/output-60"
+        relative_path = "tmp/sensemaker_test_folder/data/job-60/report_data.json"
         job.persisted_output = relative_path
         expect(job.persisted_output_path).to eq(Rails.root.join(relative_path))
         expect(job.persisted_output_path.to_s).to include(Rails.root.to_s)
       end
     end
 
-    describe "#output_artifact_paths" do
+    describe "#output_artefact_paths" do
       include_context "sensemaker paths stubbed"
-      let(:base_path) { "#{data_folder}/output-#{job.id}" }
+      let(:work_dir) { "#{data_folder}/job-#{job.id}" }
 
       context "when persisted_output is not set" do
-        it "uses default_output_path for single output scripts" do
-          job.script = "categorization_runner.ts"
-          expected_path = "#{data_folder}/categorization-output-#{job.id}.csv"
-          expect(job.output_artifact_paths).to eq([expected_path])
-        end
-
-        it "uses default_output_path for advanced_runner.ts" do
-          job.script = "advanced_runner.ts"
-          expect(job.output_artifact_paths).to eq([
-            "#{base_path}-summary.json",
-            "#{base_path}-topic-stats.json",
-            "#{base_path}-comments-with-scores.json"
+        it "returns the primary artefact path for categorize" do
+          job.script = "categorize"
+          expect(job.output_artefact_paths).to eq([
+            "#{work_dir}/categorized_without_other_filtered.csv"
           ])
         end
 
-        it "uses default_output_path for runner.ts" do
-          job.script = "runner.ts"
-          expect(job.output_artifact_paths).to eq([
-            "#{base_path}-summary.json",
-            "#{base_path}-summary.html",
-            "#{base_path}-summary.md",
-            "#{base_path}-summaryAndSource.csv"
+        it "includes optional secondary files for report_text" do
+          job.script = "report_text"
+          expect(job.output_artefact_paths).to eq([
+            "#{work_dir}/report_data.json",
+            "#{work_dir}/report_data_with_opinions.json"
           ])
         end
       end
 
       context "when persisted_output is set" do
-        let(:persisted_path) { "/historical/path/output-#{job.id}" }
+        let(:persisted_path) { "/historical/path/job-#{job.id}/report_data.json" }
 
         before do
           job.persisted_output = persisted_path
         end
 
-        it "uses resolved persisted_output_path (absolute) so File.exist? works after deploys" do
-          job.script = "categorization_runner.ts"
-          expect(job.output_artifact_paths).to eq([persisted_path])
-        end
-
-        it "uses persisted_output for advanced_runner.ts" do
-          job.script = "advanced_runner.ts"
-          expect(job.output_artifact_paths).to eq([
-            "#{persisted_path}-summary.json",
-            "#{persisted_path}-topic-stats.json",
-            "#{persisted_path}-comments-with-scores.json"
-          ])
-        end
-
-        it "uses persisted_output for runner.ts" do
-          job.script = "runner.ts"
-          expect(job.output_artifact_paths).to eq([
-            "#{persisted_path}-summary.json",
-            "#{persisted_path}-summary.html",
-            "#{persisted_path}-summary.md",
-            "#{persisted_path}-summaryAndSource.csv"
+        it "uses the directory of persisted_output_path for siblings" do
+          job.script = "report_text"
+          expect(job.output_artefact_paths).to eq([
+            persisted_path,
+            "/historical/path/job-#{job.id}/report_data_with_opinions.json"
           ])
         end
 
         context "when persisted_output is a relative path (post-deploy safe)" do
-          let(:relative_path) { "vendor/sensemaking-tools/data/output-#{job.id}" }
+          let(:relative_path) { "vendor/sensemaking-tools/data/job-#{job.id}/report_data.json" }
 
           before do
             job.persisted_output = relative_path
           end
 
           it "returns absolute paths via persisted_output_path so has_outputs? can find files" do
-            job.script = "categorization_runner.ts"
+            job.script = "report_text"
             expected = Rails.root.join(relative_path).to_s
-            expect(job.output_artifact_paths).to eq([expected])
+            opinions = File.join(File.dirname(relative_path), "report_data_with_opinions.json")
+            expect(job.output_artefact_paths).to eq([
+              expected,
+              Rails.root.join(opinions).to_s
+            ])
           end
         end
       end
@@ -273,89 +261,111 @@ describe Sensemaker::Job do
         allow(File).to receive(:exist?).and_return(false)
       end
 
-      context "when script has single output" do
+      context "when script has a single required output" do
         before do
-          job.script = "categorization_runner.ts"
+          job.script = "categorize"
         end
 
-        it "returns true when the output file exists" do
-          output_path = "#{data_folder}/categorization-output-#{job.id}.csv"
+        it "returns true when the primary artefact exists" do
+          output_path = "#{data_folder}/job-#{job.id}/categorized_without_other_filtered.csv"
           allow(File).to receive(:exist?).with(output_path).and_return(true)
           expect(job.has_outputs?).to be true
         end
 
-        it "returns false when the output file does not exist" do
+        it "returns false when the primary artefact does not exist" do
           expect(job.has_outputs?).to be false
         end
       end
 
-      shared_examples "has_outputs for multi-output script" do |script_name, path_suffixes|
-        before { job.script = script_name }
+      context "when script is report_text" do
+        before { job.script = "report_text" }
 
-        it "returns true when all output files exist" do
-          base_path = "#{data_folder}/output-#{job.id}"
-          path_suffixes.each do |suffix|
-            allow(File).to receive(:exist?).with("#{base_path}#{suffix}").and_return(true)
-          end
+        it "returns true when only report_data.json exists" do
+          primary = "#{data_folder}/job-#{job.id}/report_data.json"
+          allow(File).to receive(:exist?).with(primary).and_return(true)
           expect(job.has_outputs?).to be true
         end
 
-        it "returns false when not all output files exist" do
-          base_path = "#{data_folder}/output-#{job.id}"
-          path_suffixes[0..-2].each do |suffix|
-            allow(File).to receive(:exist?).with("#{base_path}#{suffix}").and_return(true)
-          end
-          allow(File).to receive(:exist?).with("#{base_path}#{path_suffixes.last}").and_return(false)
+        it "returns false when only the optional opinions file exists" do
+          optional = "#{data_folder}/job-#{job.id}/report_data_with_opinions.json"
+          allow(File).to receive(:exist?).with(optional).and_return(true)
           expect(job.has_outputs?).to be false
         end
       end
+    end
 
-      it_behaves_like "has_outputs for multi-output script",
-                      "advanced_runner.ts",
-                      %w[-summary.json -topic-stats.json -comments-with-scores.json]
+    describe "#publishable?" do
+      include_context "sensemaker paths stubbed"
 
-      it_behaves_like "has_outputs for multi-output script",
-                      "runner.ts",
-                      %w[-summary.json -summary.html -summary.md -summaryAndSource.csv]
+      before do
+        job.update!(finished_at: Time.current, error: nil, published: false)
+        allow(job).to receive(:has_outputs?).and_return(true)
+      end
+
+      it "returns true for a finished report_ui job with outputs" do
+        job.script = "report_ui"
+        expect(job.publishable?).to be true
+      end
+
+      it "returns false for report_text even when finished with outputs" do
+        job.script = "report_text"
+        expect(job.publishable?).to be false
+      end
+
+      it "returns false for categorize even when finished with outputs" do
+        job.script = "categorize"
+        expect(job.publishable?).to be false
+      end
+
+      it "returns false when errored" do
+        job.script = "report_ui"
+        job.error = "failed"
+        expect(job.publishable?).to be false
+      end
+    end
+
+    describe "input path helpers" do
+      include_context "sensemaker paths stubbed"
+
+      it "returns default_input_csv under work_dir" do
+        expect(job.default_input_csv).to eq("#{data_folder}/job-#{job.id}/input.csv")
+      end
+
+      it "returns categorize_output_csv for this job's work_dir" do
+        expect(job.categorize_output_csv).to eq(
+          "#{data_folder}/job-#{job.id}/categorized_without_other_filtered.csv"
+        )
+      end
+
+      it "returns bridge_scores_csv for bridge_scores script layout" do
+        job.script = "bridge_scores"
+        expect(job.bridge_scores_csv).to eq("#{data_folder}/job-#{job.id}/bridging_scores.csv")
+      end
     end
 
     describe "#cleanup_associated_files" do
       include_context "sensemaker paths stubbed"
 
       before do
-        allow(FileUtils).to receive(:rm_f).and_return(true)
+        allow(FileUtils).to receive_messages(rm_f: true, rm_rf: true)
+        allow(File).to receive(:directory?).and_return(false)
         allow(Rails.logger).to receive(:info)
         allow(Rails.logger).to receive(:warn)
       end
 
-      it "cleans up input files" do
+      it "cleans up legacy root input files" do
         expect(FileUtils).to receive(:rm_f).with("#{data_folder}/input-#{job.id}.csv")
         expect(FileUtils).to receive(:rm_f).with("#{data_folder}/input-#{job.id}.csv.unfiltered")
 
         job.send(:cleanup_input_files, data_folder)
       end
 
-      {
-        "health_check_runner.ts" => ->(j, df) { ["#{df}/health-check-#{j.id}.txt"] },
-        "advanced_runner.ts" => ->(j, df) {
-          ["#{df}/output-#{j.id}-summary.json", "#{df}/output-#{j.id}-topic-stats.json",
-           "#{df}/output-#{j.id}-comments-with-scores.json"]
-        },
-        "categorization_runner.ts" => ->(j, df) { ["#{df}/categorization-output-#{j.id}.csv"] },
-        "single-html-build.js" => ->(j, df) { ["#{df}/report-#{j.id}.html"] },
-        "runner.ts" => ->(j, df) {
-          ["#{df}/output-#{j.id}-summary.json", "#{df}/output-#{j.id}-summary.html",
-           "#{df}/output-#{j.id}-summary.md", "#{df}/output-#{j.id}-summaryAndSource.csv"]
-        }
-      }.each do |script, paths_fn|
-        context "when script is #{script}" do
-          it "cleans up output files" do
-            job.script = script
-            paths = paths_fn.call(job, data_folder)
-            paths.each { |p| expect(FileUtils).to receive(:rm_f).with(p) }
-            job.send(:cleanup_output_files, data_folder)
-          end
-        end
+      it "removes the work_dir with rm_rf when it exists" do
+        work_dir_path = "#{data_folder}/job-#{job.id}"
+        allow(File).to receive(:directory?).with(work_dir_path).and_return(true)
+        expect(FileUtils).to receive(:rm_rf).with(work_dir_path)
+
+        job.send(:cleanup_work_dir)
       end
 
       describe "#cleanup_persisted_output" do
@@ -385,25 +395,9 @@ describe Sensemaker::Job do
             job.send(:cleanup_persisted_output)
           end
         end
-
-        context "when persisted_output is present but file does not exist" do
-          before do
-            job.persisted_output = "/path/to/nonexistent.txt"
-            allow(File).to receive(:exist?).and_return(false)
-            allow(File).to receive(:exist?).with("/path/to/nonexistent.txt").and_return(false)
-          end
-
-          it "does not attempt to remove the file" do
-            expect(FileUtils).not_to receive(:rm_f)
-
-            job.send(:cleanup_persisted_output)
-          end
-        end
       end
 
       it "logs cleanup results" do
-        allow(FileUtils).to receive(:rm_f).and_return(true)
-
         expect(Rails.logger).to receive(:info).with(/Cleaned up files for job #{job.id}/)
 
         job.send(:cleanup_associated_files)
@@ -428,71 +422,37 @@ describe Sensemaker::Job do
         allow(File).to receive(:exist?).and_return(false)
       end
 
-      shared_examples "sets persisted_output when all output files exist" do |script_name, paths_fn|
-        it "sets persisted_output to relative_output_path for #{script_name} so path survives deploys" do
-          job.script = script_name
-          paths = paths_fn.call(job, data_folder)
-          paths.each { |p| allow(File).to receive(:exist?).with(p).and_return(true) }
+      it "sets persisted_output to relative_primary_artefact_path when primary artefact exists" do
+        primary = job.primary_artefact_path
+        allow(File).to receive(:exist?).with(primary).and_return(true)
+
+        job.finished_at = Time.current
+        job.error = nil
+        job.save!
+
+        expect(job.persisted_output).to eq(job.relative_primary_artefact_path)
+        expect(job.persisted_output).not_to start_with("/")
+      end
+
+      it "does not set persisted_output when primary artefact is missing" do
+        job.finished_at = Time.current
+        job.error = nil
+        job.save!
+
+        expect(job.persisted_output).to be(nil)
+      end
+
+      context "when persisted_output is already set" do
+        it "does not overwrite existing persisted_output" do
+          existing_path = "existing/path/report_data.json"
+          job.persisted_output = existing_path
+          allow(File).to receive(:exist?).with(job.primary_artefact_path).and_return(true)
 
           job.finished_at = Time.current
           job.error = nil
           job.save!
 
-          expect(job.persisted_output).to eq(job.relative_output_path)
-          expect(job.persisted_output).not_to start_with("/")
-        end
-      end
-
-      context "when job is successful (finished_at present, no error)" do
-        context "when persisted_output is not set" do
-          context "when all output files exist" do
-            it_behaves_like "sets persisted_output when all output files exist",
-                            "categorization_runner.ts",
-                            ->(j, df) { ["#{df}/categorization-output-#{j.id}.csv"] }
-
-            it_behaves_like "sets persisted_output when all output files exist",
-                            "advanced_runner.ts",
-                            ->(j, df) {
-                              ["#{df}/output-#{j.id}-summary.json", "#{df}/output-#{j.id}-topic-stats.json",
-                               "#{df}/output-#{j.id}-comments-with-scores.json"]
-                            }
-
-            it_behaves_like "sets persisted_output when all output files exist",
-                            "runner.ts",
-                            ->(j, df) {
-                              ["#{df}/output-#{j.id}-summary.json", "#{df}/output-#{j.id}-summary.html",
-                               "#{df}/output-#{j.id}-summary.md", "#{df}/output-#{j.id}-summaryAndSource.csv"]
-                            }
-          end
-
-          context "when not all output files exist" do
-            it "does not set persisted_output" do
-              job.script = "advanced_runner.ts"
-              base_path = "#{data_folder}/output-#{job.id}"
-              allow(File).to receive(:exist?).with("#{base_path}-summary.json").and_return(true)
-              allow(File).to receive(:exist?).with("#{base_path}-topic-stats.json").and_return(true)
-              allow(File).to receive(:exist?).with("#{base_path}-comments-with-scores.json").and_return(false)
-
-              job.finished_at = Time.current
-              job.error = nil
-              job.save!
-
-              expect(job.persisted_output).to be(nil)
-            end
-          end
-        end
-
-        context "when persisted_output is already set" do
-          it "does not overwrite existing persisted_output" do
-            existing_path = "/existing/path/output-#{job.id}"
-            job.persisted_output = existing_path
-
-            job.finished_at = Time.current
-            job.error = nil
-            job.save!
-
-            expect(job.persisted_output).to eq(existing_path)
-          end
+          expect(job.persisted_output).to eq(existing_path)
         end
       end
 
@@ -521,7 +481,8 @@ describe Sensemaker::Job do
       include_context "sensemaker paths stubbed"
 
       before do
-        allow(FileUtils).to receive(:rm_f).and_return(true)
+        allow(FileUtils).to receive_messages(rm_f: true, rm_rf: true)
+        allow(File).to receive(:directory?).and_return(false)
         allow(Rails.logger).to receive(:info)
         allow(Rails.logger).to receive(:warn)
       end
@@ -533,9 +494,8 @@ describe Sensemaker::Job do
 
       it "continues with destruction even if cleanup fails" do
         expect(job).to receive(:cleanup_input_files)
-
-        expect(job).to receive(:cleanup_output_files)
-        allow(job).to receive(:cleanup_output_files).and_raise(StandardError.new("Bork"))
+        expect(job).to receive(:cleanup_work_dir)
+        allow(job).to receive(:cleanup_work_dir).and_raise(StandardError.new("Bork"))
 
         expect { job.destroy }.not_to raise_error
         expect(Sensemaker::Job.find_by(id: job.id)).to be(nil)

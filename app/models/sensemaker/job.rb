@@ -1,6 +1,12 @@
+# frozen_string_literal: true
+
 module Sensemaker
   class Job < ApplicationRecord
     self.table_name = "sensemaker_jobs"
+
+    SCRIPTS = Sensemaker::Scripts::SCRIPTS
+    PUBLISHABLE_SCRIPTS = Sensemaker::Scripts::PUBLISHABLE_SCRIPTS
+    PIPELINE_SCRIPTS = Sensemaker::Scripts::PIPELINE_SCRIPTS
 
     ANALYSABLE_TYPES = [
       "Debate",
@@ -15,6 +21,7 @@ module Sensemaker
     ].freeze
 
     validates :analysable_type, inclusion: { in: ANALYSABLE_TYPES }
+    validates :script, inclusion: { in: SCRIPTS }, allow_nil: true
 
     belongs_to :user, optional: false
     belongs_to :parent_job, class_name: "Sensemaker::Job", optional: true
@@ -86,31 +93,44 @@ module Sensemaker
       update!(finished_at: Time.current, error: "Cancelled")
     end
 
+    def work_dir
+      return nil if id.blank?
+
+      File.join(Sensemaker::Paths.sensemaker_data_folder, work_dir_basename)
+    end
+
+    def relative_work_dir
+      return nil if id.blank?
+
+      File.join(Sensemaker::Paths.sensemaker_relative_data_folder, work_dir_basename)
+    end
+
     def output_file_name
-      case script
-      when "health_check_runner.ts"
-        "health-check-#{id}.txt"
-      when "advanced_runner.ts", "runner.ts"
-        "output-#{id}"
-      when "categorization_runner.ts"
-        "categorization-output-#{id}.csv"
-      when "single-html-build.js"
-        "report-#{id}.html"
+      Sensemaker::Scripts.primary_output_basename(script)
+    end
+
+    def primary_artefact_path
+      if persisted_output.present?
+        persisted_output_path.to_s
       else
-        "output-#{id}.csv"
+        File.join(work_dir, output_file_name)
       end
     end
 
     def has_multiple_outputs?
-      ["advanced_runner.ts", "runner.ts"].include?(script)
+      script == "report_text"
     end
 
     def default_output_path
-      File.join(Sensemaker::Paths.sensemaker_data_folder, output_file_name)
+      primary_artefact_path
+    end
+
+    def relative_primary_artefact_path
+      File.join(relative_work_dir, output_file_name)
     end
 
     def relative_output_path
-      File.join(Sensemaker::Paths.sensemaker_relative_data_folder, output_file_name)
+      relative_primary_artefact_path
     end
 
     def persisted_output_path
@@ -120,34 +140,45 @@ module Sensemaker
       Rails.root.join(p)
     end
 
-    def output_artifact_paths
+    def output_artefact_paths
       if persisted_output.present?
-        base_path = persisted_output_path.to_s
+        base_dir = File.dirname(persisted_output_path.to_s)
+        paths = [persisted_output_path.to_s]
       else
-        base_path = default_output_path
+        base_dir = work_dir.to_s
+        paths = [File.join(base_dir, output_file_name)]
       end
-
-      case script
-      when "advanced_runner.ts"
-        [
-          "#{base_path}-summary.json",
-          "#{base_path}-topic-stats.json",
-          "#{base_path}-comments-with-scores.json"
-        ]
-      when "runner.ts"
-        [
-          "#{base_path}-summary.json",
-          "#{base_path}-summary.html",
-          "#{base_path}-summary.md",
-          "#{base_path}-summaryAndSource.csv"
-        ]
-      else
-        [base_path]
+      Sensemaker::Scripts.secondary_output_basenames(script).each do |basename|
+        paths << File.join(base_dir, basename)
       end
+      paths
     end
 
     def has_outputs?
-      output_artifact_paths.all? { |path| File.exist?(path) }
+      required_paths = required_output_artefact_paths
+      required_paths.all? { |path| File.exist?(path) }
+    end
+
+    def publishable?
+      finished? && !errored? && PUBLISHABLE_SCRIPTS.include?(script) && has_outputs?
+    end
+
+    def default_input_csv
+      return nil if work_dir.blank?
+
+      File.join(work_dir, "input.csv")
+    end
+
+    def categorize_output_csv
+      return nil if work_dir.blank?
+
+      File.join(work_dir, Sensemaker::Scripts.primary_output_basename("categorize"))
+    end
+
+    def bridge_scores_csv
+      return nil if work_dir.blank?
+
+      File.join(work_dir, Sensemaker::Scripts.primary_output_basename("bridge_scores"))
     end
 
     def self.for_budget(budget)
@@ -173,12 +204,20 @@ module Sensemaker
 
     private
 
+      def work_dir_basename
+        "job-#{id}"
+      end
+
+      def required_output_artefact_paths
+        [primary_artefact_path]
+      end
+
       def set_persisted_output_if_successful
         return unless finished_at.present? && error.nil?
         return if persisted_output.present?
 
         if has_outputs?
-          self.persisted_output = relative_output_path
+          self.persisted_output = relative_primary_artefact_path
         end
       end
 
@@ -186,8 +225,8 @@ module Sensemaker
         data_folder = Sensemaker::Paths.sensemaker_data_folder
         result = []
         result << cleanup_input_files(data_folder)
-        result << cleanup_output_files(data_folder)
-        result << cleanup_persisted_output()
+        result << cleanup_work_dir
+        result << cleanup_persisted_output
         result.flatten!
         result.compact!
         Rails.logger.info("Cleaned up files for job #{id}: #{result.inspect}")
@@ -205,27 +244,16 @@ module Sensemaker
         result
       end
 
-      def cleanup_output_files(data_folder)
-        result = []
-        case script
-        when "advanced_runner.ts"
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-summary.json")
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-topic-stats.json")
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-comments-with-scores.json")
-        when "runner.ts"
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-summary.json")
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-summary.html")
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-summary.md")
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}-summaryAndSource.csv")
-        else
-          result << FileUtils.rm_f("#{data_folder}/#{output_file_name}")
-        end
-        result
+      def cleanup_work_dir
+        dir = work_dir
+        return [] if dir.blank? || !File.directory?(dir)
+
+        [FileUtils.rm_rf(dir)]
       end
 
       def cleanup_persisted_output
         path = persisted_output_path
-        return unless path.present? && File.exist?(path)
+        return [] unless path.present? && File.exist?(path)
 
         [FileUtils.rm_f(path)]
       end
