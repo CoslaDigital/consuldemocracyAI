@@ -340,8 +340,17 @@ describe Sensemaker::JobRunner do
 
       expect(command).to include("--input_file")
       expect(command).to include("--output_dir")
+      expect(command).to include("--skip_autoraters")
       expect(command).to include(job.input_file)
       expect(command).to include("#{data_folder}/job-#{job.id}")
+    end
+
+    it "does not pass skip_autoraters for bridge_scores" do
+      job.script = "bridge_scores"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-bridge-scores").and_return("/tmp/sensemaking-bridge-scores")
+
+      expect(service.build_command).not_to include("--skip_autoraters")
     end
 
     it "includes inline additional_context for categorize" do

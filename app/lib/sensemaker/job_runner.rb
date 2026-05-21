@@ -100,6 +100,7 @@ module Sensemaker
         when "categorize"
           command_parts << "--input_file #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_dir #{Shellwords.escape(work_dir)}"
+          command_parts << "--skip_autoraters"
         when "bridge_scores"
           command_parts << "--input_csv #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_csv #{Shellwords.escape(File.join(work_dir, job.output_file_name))}"
