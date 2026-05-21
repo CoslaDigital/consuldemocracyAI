@@ -19,6 +19,8 @@ module Sensemaker
       case provider
       when /vertex/
         "vertex"
+      when /gemini/
+        "gemini"
       when /ollama/
         "ollama"
       when /openai/, /openrouter/, /mistral/
@@ -38,13 +40,20 @@ module Sensemaker
     end
 
     def api_key
-      provider_name = compat_provider
-      return nil if provider_name.blank?
+      case adapter
+      when "gemini"
+        return llm_config.gemini_api_key.to_s.presence if llm_config.respond_to?(:gemini_api_key)
+      when "openai-compatible"
+        provider_name = compat_provider
+        return nil if provider_name.blank?
 
-      key_method = "#{provider_name}_api_key"
-      return nil unless llm_config.respond_to?(key_method)
+        key_method = "#{provider_name}_api_key"
+        return nil unless llm_config.respond_to?(key_method)
 
-      llm_config.public_send(key_method).to_s.presence
+        return llm_config.public_send(key_method).to_s.presence
+      end
+
+      nil
     end
 
     def base_url
@@ -74,7 +83,11 @@ module Sensemaker
     end
 
     def supported?
-      adapter.present?
+      cli_supported?
+    end
+
+    def cli_supported?
+      adapter.present? && adapter != "ollama"
     end
 
     private

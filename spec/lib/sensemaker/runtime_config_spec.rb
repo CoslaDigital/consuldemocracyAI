@@ -13,7 +13,8 @@ describe Sensemaker::RuntimeConfig do
       openrouter_api_base: "https://openrouter.ai/api/v1",
       mistral_api_key: "mistral-secret",
       mistral_api_base: "https://api.mistral.ai/v1",
-      ollama_api_base: "http://localhost:11434"
+      ollama_api_base: "http://localhost:11434",
+      gemini_api_key: "gemini-secret"
     )
   end
   let(:llm_context) { double("LLM context", config: llm_config) }
@@ -44,9 +45,18 @@ describe Sensemaker::RuntimeConfig do
       expect(runtime_config.adapter).to eq("openai-compatible")
     end
 
+    it "maps gemini provider to gemini adapter" do
+      allow(setting).to receive(:[]).with("llm.provider").and_return("Gemini")
+      expect(runtime_config.adapter).to eq("gemini")
+      expect(runtime_config.cli_supported?).to be(true)
+      expect(runtime_config.api_key).to eq("gemini-secret")
+    end
+
     it "maps ollama provider to ollama adapter" do
       allow(setting).to receive(:[]).with("llm.provider").and_return("ollama")
       expect(runtime_config.adapter).to eq("ollama")
+      expect(runtime_config.cli_supported?).to be(false)
+      expect(runtime_config.supported?).to be(false)
     end
 
     it "returns nil for unsupported provider" do
