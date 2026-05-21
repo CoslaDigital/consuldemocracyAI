@@ -263,21 +263,21 @@ describe Sensemaker::Job do
       end
 
       it "returns only paths for which the file exists" do
-        job.script = "runner.ts"
-        existing_path = "#{base_path}-summary.json"
+        job.script = "bridge_scores"
+        existing_path = "#{data_folder}/job-#{job.id}/bridging_scores.csv"
         allow(File).to receive(:exist?).with(existing_path).and_return(true)
 
         expect(job.existing_output_artefact_paths).to eq([existing_path])
       end
 
       it "excludes paths for which the file does not exist" do
-        job.script = "runner.ts"
-        path1 = "#{base_path}-summary.json"
-        path2 = "#{base_path}-summary.html"
-        allow(File).to receive(:exist?).with(path1).and_return(true)
-        allow(File).to receive(:exist?).with(path2).and_return(false)
+        job.script = "bridge_scores"
+        existing_path = "#{data_folder}/job-#{job.id}/bridging_scores.csv"
+        missing_path = "#{data_folder}/job-#{job.id}/other.csv"
+        allow(File).to receive(:exist?).with(existing_path).and_return(true)
+        allow(File).to receive(:exist?).with(missing_path).and_return(false)
 
-        expect(job.existing_output_artefact_paths).to eq([path1])
+        expect(job.existing_output_artefact_paths).to eq([existing_path])
       end
     end
 
@@ -287,21 +287,10 @@ describe Sensemaker::Job do
         expect(job.input_artefact_paths).to eq([])
       end
 
-      it "returns a single path for non single-html scripts" do
-        job.script = "runner.ts"
-        job.input_file = "/tmp/input-#{job.id}.csv"
-        expect(job.input_artefact_paths).to eq([job.input_file])
-      end
-
-      it "returns derived JSON artefacts for single-html-build.js" do
-        job.script = "single-html-build.js"
-        job.input_file = "/tmp/output-#{job.id}"
-
-        expect(job.input_artefact_paths).to eq([
-          "#{job.input_file}-topic-stats.json",
-          "#{job.input_file}-summary.json",
-          "#{job.input_file}-comments-with-scores.json"
-        ])
+      it "returns a single path when input_file is set" do
+        job.script = "report_text"
+        job[:input_file] = "/tmp/input-#{job.id}.csv"
+        expect(job.input_artefact_paths).to eq(["/tmp/input-#{job.id}.csv"])
       end
     end
 
@@ -313,24 +302,10 @@ describe Sensemaker::Job do
       it "returns only input artefacts that exist" do
         existing_path = "/tmp/input-existing-#{job.id}.csv"
         allow(File).to receive(:exist?).with(existing_path).and_return(true)
-        job.script = "runner.ts"
-        job.input_file = existing_path
+        job.script = "bridge_scores"
+        job[:input_file] = existing_path
 
         expect(job.existing_input_artefact_paths).to eq([existing_path])
-      end
-
-      it "returns only existing derived input artefacts for single-html-build.js" do
-        job.script = "single-html-build.js"
-        job.input_file = "/tmp/output-#{job.id}"
-        existing = "#{job.input_file}-summary.json"
-        missing_1 = "#{job.input_file}-topic-stats.json"
-        missing_2 = "#{job.input_file}-comments-with-scores.json"
-
-        allow(File).to receive(:exist?).with(existing).and_return(true)
-        allow(File).to receive(:exist?).with(missing_1).and_return(false)
-        allow(File).to receive(:exist?).with(missing_2).and_return(false)
-
-        expect(job.existing_input_artefact_paths).to eq([existing])
       end
     end
 

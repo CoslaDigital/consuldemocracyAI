@@ -163,32 +163,14 @@ module Sensemaker
     end
 
     def input_file
-      current_input_file = read_attribute(:input_file)
-      if current_input_file.present?
-        current_input_file
-      elsif script == "advanced_runner.ts"
-        "#{Sensemaker::Paths.sensemaker_data_folder}/categorization-output-#{id}.csv"
-      elsif script == "single-html-build.js"
-        "#{Sensemaker::Paths.sensemaker_data_folder}/advanced-output"
-      else
-        "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{id}.csv"
-      end
+      read_attribute(:input_file).presence || default_input_csv
     end
 
     def input_artefact_paths
-      base_path = input_file.to_s
-      return [] if base_path.blank?
+      path = read_attribute(:input_file).to_s
+      return [] if path.blank?
 
-      case script
-      when "single-html-build.js"
-        [
-          "#{base_path}-topic-stats.json",
-          "#{base_path}-summary.json",
-          "#{base_path}-comments-with-scores.json"
-        ]
-      else
-        [base_path]
-      end
+      [path]
     end
 
     def existing_input_artefact_paths
