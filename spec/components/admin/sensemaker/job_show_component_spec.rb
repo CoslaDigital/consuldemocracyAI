@@ -41,6 +41,7 @@ describe Admin::Sensemaker::JobShowComponent do
     context "when job can be downloaded" do
       let(:input_path) { sensemaker_job.default_input_csv }
       let(:artefact_path) { sensemaker_job.primary_artefact_path }
+
       before do
         sensemaker_job.update!(
           finished_at: Time.current,
