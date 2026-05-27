@@ -222,9 +222,7 @@ module Sensemaker
       end
 
       def cleanup_associated_files
-        data_folder = Sensemaker::Paths.sensemaker_data_folder
         result = []
-        result << cleanup_input_files(data_folder)
         result << cleanup_work_dir
         result << cleanup_persisted_output
         result.flatten!
@@ -234,14 +232,6 @@ module Sensemaker
       rescue => e
         Rails.logger.warn("Failed to cleanup files for job #{id}: #{e.message}")
         nil
-      end
-
-      def cleanup_input_files(data_folder)
-        input_file = "#{data_folder}/input-#{id}.csv"
-        result = []
-        result << FileUtils.rm_f(input_file)
-        result << FileUtils.rm_f("#{input_file}.unfiltered")
-        result
       end
 
       def cleanup_work_dir

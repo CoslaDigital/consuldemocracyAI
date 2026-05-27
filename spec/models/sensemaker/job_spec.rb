@@ -353,13 +353,6 @@ describe Sensemaker::Job do
         allow(Rails.logger).to receive(:warn)
       end
 
-      it "cleans up legacy root input files" do
-        expect(FileUtils).to receive(:rm_f).with("#{data_folder}/input-#{job.id}.csv")
-        expect(FileUtils).to receive(:rm_f).with("#{data_folder}/input-#{job.id}.csv.unfiltered")
-
-        job.send(:cleanup_input_files, data_folder)
-      end
-
       it "removes the work_dir with rm_rf when it exists" do
         work_dir_path = "#{data_folder}/job-#{job.id}"
         allow(File).to receive(:directory?).with(work_dir_path).and_return(true)
@@ -404,7 +397,7 @@ describe Sensemaker::Job do
       end
 
       it "handles errors gracefully" do
-        allow(FileUtils).to receive(:rm_f).and_raise(StandardError.new("File system error"))
+        allow(job).to receive(:cleanup_work_dir).and_raise(StandardError.new("File system error"))
 
         expect(Rails.logger).to receive(:warn).with(/Failed to cleanup files for job #{job.id}/)
 
@@ -493,7 +486,6 @@ describe Sensemaker::Job do
       end
 
       it "continues with destruction even if cleanup fails" do
-        expect(job).to receive(:cleanup_input_files)
         expect(job).to receive(:cleanup_work_dir)
         allow(job).to receive(:cleanup_work_dir).and_raise(StandardError.new("Bork"))
 
