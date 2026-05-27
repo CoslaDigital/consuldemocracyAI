@@ -6,8 +6,8 @@ describe Sensemaker::Scripts do
       expect(Sensemaker::Scripts.cli_for("categorize")).to eq("sensemaking-categorize")
     end
 
-    it "returns nil for report_ui" do
-      expect(Sensemaker::Scripts.cli_for("report_ui")).to be(nil)
+    it "returns the sensemaking report CLI command for report_ui" do
+      expect(Sensemaker::Scripts.cli_for("report_ui")).to eq("sensemaking-report")
     end
 
     it "raises for unknown scripts" do

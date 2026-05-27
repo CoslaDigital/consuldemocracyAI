@@ -19,7 +19,7 @@ module Sensemaker
       "categorize" => "sensemaking-categorize",
       "bridge_scores" => "sensemaking-bridge-scores",
       "report_text" => "sensemaking-report-text",
-      "report_ui" => nil
+      "report_ui" => "sensemaking-report"
     }.freeze
 
     PRIMARY_OUTPUT_BASENAMES = {

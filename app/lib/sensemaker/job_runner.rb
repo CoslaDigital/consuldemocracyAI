@@ -4,7 +4,7 @@ module Sensemaker
   class JobRunner
     TIMEOUT = 1800
     MAX_CLI_ERROR_OUTPUT = 20_000
-    CLI_OUTPUT_TRUNCATION_OMISSION = "\n\n…[output truncated; showing end of log]…\n\n"
+    CLI_OUTPUT_TRUNCATION_OMISSION = "\n\n…[output truncated; showing end of log]…\n\n".freeze
 
     CONTEXT_SCRIPTS = %w[categorize report_text].freeze
     INPUT_SCRIPTS = %w[categorize bridge_scores report_text].freeze
@@ -63,7 +63,14 @@ module Sensemaker
       end
 
       def cli_executable
-        Sensemaker::Paths.sensemaking_cli(Sensemaker::Scripts.cli_for(job.script))
+        cli_name = Sensemaker::Scripts.cli_for(job.script)
+        return Sensemaker::Paths.node_cli(cli_name) if report_ui?
+
+        Sensemaker::Paths.sensemaking_cli(cli_name)
+      end
+
+      def report_ui?
+        job.script == "report_ui"
       end
 
       def ensure_work_dir!
@@ -71,6 +78,8 @@ module Sensemaker
       end
 
       def append_llm_flags(command_parts)
+        return if report_ui?
+
         model_name = runtime_config.model
         command_parts << "--model_name #{Shellwords.escape(model_name)}" if model_name.present?
 
@@ -108,6 +117,11 @@ module Sensemaker
         when "report_text"
           command_parts << "--input_csv #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_dir #{Shellwords.escape(work_dir)}"
+        when "report_ui"
+          command_parts << "inline"
+          command_parts << "--opinions #{Shellwords.escape(report_ui_opinions_input_file.to_s)}"
+          command_parts << "--summary #{Shellwords.escape(report_ui_summary_input_file.to_s)}"
+          command_parts << "--output #{Shellwords.escape(work_dir)}"
         end
       end
 
@@ -126,6 +140,7 @@ module Sensemaker
         comments_prepared_count = prepare_input_data
         return unless check_dependencies?
         return if execute_script.blank?
+        return unless normalize_report_ui_output!
 
         attribs = { finished_at: Time.current }
         if job.has_outputs?
@@ -241,18 +256,30 @@ module Sensemaker
       end
 
       def check_dependencies?
-        if job.script == "report_ui"
-          message = "Interactive report build is not available yet (PR5)."
-          job.update!(finished_at: Time.current, error: message)
-          Rails.logger.error(message)
-          return false
-        end
-
         if Tenant.current_secrets.sensemaker_data_folder.blank?
           message = "Sensemaker data folder not configured. Add 'sensemaker_data_folder' to your secrets.yml"
           job.update!(finished_at: Time.current, error: message)
           Rails.logger.error(message)
           return false
+        end
+
+        return false unless file_exists?(Sensemaker::Paths.sensemaker_data_folder,
+                                         description: "Sensemaker data folder")
+
+        cli_path = cli_executable
+        return false unless file_exists?(cli_path, description: "Sensemaker CLI (#{job.script})")
+
+        if report_ui?
+          return false unless file_exists?(
+            report_ui_opinions_input_file,
+            description: "Report UI opinions input"
+          )
+          return false unless file_exists?(
+            report_ui_summary_input_file,
+            description: "Report UI summary input"
+          )
+
+          return true
         end
 
         unless runtime_config.cli_supported?
@@ -293,17 +320,43 @@ module Sensemaker
                                            description: "Key file (apis.google_application_credentials)")
         end
 
-        return false unless file_exists?(Sensemaker::Paths.sensemaker_data_folder,
-                                         description: "Sensemaker data folder")
-
-        cli_path = cli_executable
-        return false unless file_exists?(cli_path, description: "Sensemaker CLI (#{job.script})")
-
         if INPUT_SCRIPTS.include?(job.script) && !file_exists?(job.input_file, description: "Input file")
           return false
         end
 
         true
+      end
+
+      def report_ui_opinions_input_file
+        bridge_job = job.children.where(script: "bridge_scores").order(:created_at).last
+        bridge_job&.bridge_scores_csv
+      end
+
+      def report_ui_summary_input_file
+        report_job = job.children.where(script: "report_text").order(:created_at).last
+        report_job&.primary_artefact_path || job.input_file
+      end
+
+      def normalize_report_ui_output!
+        return true unless report_ui?
+
+        inline_index_path = File.join(job.work_dir, "inline", "index.html")
+        report_html_path = File.join(job.work_dir, job.output_file_name)
+
+        unless File.exist?(inline_index_path)
+          message = "Report UI output not found: #{inline_index_path}"
+          job.update!(finished_at: Time.current, error: message)
+          Rails.logger.error(message)
+          return false
+        end
+
+        FileUtils.cp(inline_index_path, report_html_path)
+        true
+      rescue => e
+        message = "Failed to normalize report UI output: #{e.message}"
+        job.update!(finished_at: Time.current, error: message)
+        Rails.logger.error(message)
+        false
       end
 
       def execute_script

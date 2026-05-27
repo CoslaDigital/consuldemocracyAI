@@ -27,6 +27,19 @@ module Sensemaker
       path
     end
 
+    def self.node_modules_bin
+      Rails.root.join("node_modules/.bin")
+    end
+
+    def self.node_cli(name)
+      path = node_modules_bin.join(name)
+      unless File.file?(path) && File.executable?(path)
+        raise "Sensemaker Node CLI not found or not executable: #{path}. " \
+              "Run: npm install"
+      end
+      path
+    end
+
     def self.sensemaker_relative_data_folder
       if Rails.env.test?
         "tmp/sensemaker_test_folder/data"

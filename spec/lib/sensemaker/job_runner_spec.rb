@@ -13,13 +13,15 @@ describe Sensemaker::JobRunner do
            additional_context: "Debate context for categorization")
   end
   let(:cli_path) { "/tmp/sensemaking-categorize" }
+  let(:node_cli_path) { "/tmp/sensemaking-report" }
 
   shared_context "sensemaker paths stubbed" do
     let(:data_folder) { "/tmp/sensemaker_test_folder/data" }
 
     before do
       allow(Sensemaker::Paths).to receive_messages(sensemaker_data_folder: data_folder,
-                                                   sensemaking_cli: cli_path)
+                                                   sensemaking_cli: cli_path,
+                                                   node_cli: node_cli_path)
     end
   end
 
@@ -101,13 +103,18 @@ describe Sensemaker::JobRunner do
       expect(result).to be true
     end
 
-    it "returns false for report_ui with a clear message" do
+    it "returns true for report_ui when node CLI and prepared inputs exist" do
       job.script = "report_ui"
+      bridge_job = create(:sensemaker_job, :bridge_scores, parent_job: job, user: user)
+      report_job = create(:sensemaker_job, :report_text, parent_job: job, user: user)
+      allow(bridge_job).to receive(:bridge_scores_csv).and_return("/tmp/bridging_scores.csv")
+      allow(report_job).to receive(:primary_artefact_path).and_return("/tmp/report_data.json")
+      allow(File).to receive(:exist?).with("/tmp/bridging_scores.csv").and_return(true)
+      allow(File).to receive(:exist?).with("/tmp/report_data.json").and_return(true)
+      allow(Sensemaker::Paths).to receive(:node_cli).with("sensemaking-report").and_return(node_cli_path)
 
       result = service.send(:check_dependencies?)
-      expect(result).to be false
-      job.reload
-      expect(job.error).to include("Interactive report build is not available yet")
+      expect(result).to be true
     end
 
     {
@@ -186,6 +193,29 @@ describe Sensemaker::JobRunner do
       expect(result).to be false
       job.reload
       expect(job.error).to include("Sensemaker requires an API key for provider 'openai'")
+    end
+
+    it "returns false for report_ui when node CLI is missing" do
+      job.script = "report_ui"
+      allow(Sensemaker::Paths).to receive(:node_cli)
+        .with("sensemaking-report").and_raise("Sensemaker Node CLI not found or not executable")
+
+      expect { service.send(:check_dependencies?) }.to raise_error(/Sensemaker Node CLI not found/)
+    end
+
+    it "returns false for report_ui when prepared inputs are missing" do
+      job.script = "report_ui"
+      bridge_job = create(:sensemaker_job, :bridge_scores, parent_job: job, user: user)
+      report_job = create(:sensemaker_job, :report_text, parent_job: job, user: user)
+      allow(Sensemaker::Paths).to receive(:node_cli).with("sensemaking-report").and_return(node_cli_path)
+      allow(File).to receive(:exist?).with(bridge_job.bridge_scores_csv).and_return(false)
+      allow(File).to receive(:exist?).with(report_job.primary_artefact_path).and_return(true)
+
+      result = service.send(:check_dependencies?)
+
+      expect(result).to be false
+      job.reload
+      expect(job.error).to include("Report UI opinions input not found")
     end
 
     context "when script is health_check" do
@@ -394,6 +424,23 @@ describe Sensemaker::JobRunner do
       expect(command).to include("--scorer_type GEMINI")
       expect(command).not_to include("--additional_context")
     end
+
+    it "builds report_ui command with inline report arguments" do
+      job.script = "report_ui"
+      bridge_job = create(:sensemaker_job, :bridge_scores, parent_job: job, user: user)
+      report_job = create(:sensemaker_job, :report_text, parent_job: job, user: user)
+      allow(Sensemaker::Paths).to receive(:node_cli).with("sensemaking-report").and_return(node_cli_path)
+
+      command = service.build_command
+
+      expect(command).to include(node_cli_path)
+      expect(command).to include("inline")
+      expect(command).to include("--opinions #{bridge_job.bridge_scores_csv}")
+      expect(command).to include("--summary #{report_job.primary_artefact_path}")
+      expect(command).to include("--output #{data_folder}/job-#{job.id}")
+      expect(command).not_to include("--adapter")
+      expect(command).not_to include("--model_name")
+    end
   end
 
   describe "#execute_job_workflow" do
@@ -448,6 +495,23 @@ describe Sensemaker::JobRunner do
         job.reload
         expect(job.finished_at).to be_present
         expect(job.error).to eq("Output file(s) not found")
+      end
+    end
+
+    context "when script is report_ui" do
+      before do
+        job.update!(script: "report_ui")
+      end
+
+      it "normalizes inline output before marking job successful" do
+        allow(job).to receive(:has_outputs?).and_return(true)
+        expect(service).to receive(:normalize_report_ui_output!).and_return(true)
+
+        service.send(:execute_job_workflow)
+
+        job.reload
+        expect(job.finished_at).to be_present
+        expect(job.error).to be(nil)
       end
     end
   end
