@@ -32,8 +32,9 @@ describe Admin::Sensemaker::JobsController do
     let(:data_folder) { Sensemaker::Paths.sensemaker_data_folder.to_s }
 
     context "when artefact param is provided and valid" do
-      let(:basename) { "artefact-#{SecureRandom.hex}.json" }
-      let(:tmp_file) { File.join(data_folder, basename) }
+      let(:relative_path) { "job-#{job.id}/artefact-#{SecureRandom.hex}.json" }
+      let(:basename) { File.basename(relative_path) }
+      let(:tmp_file) { File.join(data_folder, relative_path) }
 
       before do
         FileUtils.mkdir_p(File.dirname(tmp_file))
@@ -47,7 +48,7 @@ describe Admin::Sensemaker::JobsController do
       end
 
       it "sends the requested artefact file" do
-        get :download, params: { id: job.id, artefact: basename }
+        get :download, params: { id: job.id, artefact: relative_path }
 
         expect(response).to have_http_status(:ok)
         expect(response.header["Content-Disposition"]).to include(basename)
@@ -55,8 +56,9 @@ describe Admin::Sensemaker::JobsController do
     end
 
     context "when input artefact param is provided and valid" do
-      let(:basename) { "input-#{SecureRandom.hex}.csv" }
-      let(:tmp_file) { File.join(data_folder, basename) }
+      let(:relative_path) { "job-#{job.id}/input-#{SecureRandom.hex}.csv" }
+      let(:basename) { File.basename(relative_path) }
+      let(:tmp_file) { File.join(data_folder, relative_path) }
 
       before do
         FileUtils.mkdir_p(File.dirname(tmp_file))
@@ -69,10 +71,19 @@ describe Admin::Sensemaker::JobsController do
       end
 
       it "sends the requested input artefact file" do
-        get :download, params: { id: job.id, artefact: basename }
+        get :download, params: { id: job.id, artefact: relative_path }
 
         expect(response).to have_http_status(:ok)
         expect(response.header["Content-Disposition"]).to include(basename)
+      end
+    end
+
+    context "when artefact path attempts traversal" do
+      it "redirects to show with alert" do
+        get :download, params: { id: job.id, artefact: "../../etc/passwd" }
+
+        expect(response).to redirect_to(admin_sensemaker_job_path(job))
+        expect(flash[:alert]).to be_present
       end
     end
 

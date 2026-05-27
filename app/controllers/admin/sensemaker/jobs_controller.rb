@@ -223,7 +223,13 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
     artefacts = @sensemaker_job.existing_input_artefact_paths + @sensemaker_job.existing_output_artefact_paths
 
     if params[:artefact].present?
-      requested = File.join(Sensemaker::Paths.sensemaker_data_folder, params[:artefact])
+      base_folder = Sensemaker::Paths.sensemaker_data_folder.to_s
+      requested = File.expand_path(File.join(base_folder, params[:artefact].to_s))
+      unless requested == base_folder || requested.start_with?("#{base_folder}/")
+        return redirect_to admin_sensemaker_job_path(@sensemaker_job),
+                           alert: I18n.t("admin.sensemaker.notice.output_file_not_found")
+      end
+
       if artefacts.include?(requested)
         return send_file requested, filename: File.basename(requested)
       else

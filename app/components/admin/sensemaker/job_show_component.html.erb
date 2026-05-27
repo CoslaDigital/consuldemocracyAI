@@ -135,7 +135,11 @@
           <% if input_paths.any? %>
             <% input_paths.each do |path| %>
               <li>
-                <%= link_to ::File.basename(path), download_admin_sensemaker_job_path(sensemaker_job, artefact: ::File.basename(path)) %>
+                <%= link_to ::File.basename(path),
+                            download_admin_sensemaker_job_path(
+                              sensemaker_job,
+                              artefact: artefact_param_for(path)
+                            ) %>
               </li>
             <% end %>
           <% else %>
@@ -149,7 +153,11 @@
           <% if output_paths.any? %>
             <% output_paths.each do |path| %>
               <li>
-                <%= link_to ::File.basename(path), download_admin_sensemaker_job_path(sensemaker_job, artefact: ::File.basename(path)) %>
+                <%= link_to ::File.basename(path),
+                            download_admin_sensemaker_job_path(
+                              sensemaker_job,
+                              artefact: artefact_param_for(path)
+                            ) %>
               </li>
             <% end %>
           <% else %>

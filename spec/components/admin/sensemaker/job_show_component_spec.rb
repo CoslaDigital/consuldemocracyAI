@@ -1,4 +1,5 @@
 require "rails_helper"
+require "cgi"
 
 describe Admin::Sensemaker::JobShowComponent do
   let(:user) { create(:user) }
@@ -42,7 +43,7 @@ describe Admin::Sensemaker::JobShowComponent do
         File.join(Sensemaker::Paths.sensemaker_data_folder, "input-#{sensemaker_job.id}.csv")
       end
       let(:artefact_path) do
-        File.join(Sensemaker::Paths.sensemaker_data_folder, sensemaker_job.output_file_name)
+        File.join(Sensemaker::Paths.sensemaker_data_folder, "job-#{sensemaker_job.id}", sensemaker_job.output_file_name)
       end
       before do
         sensemaker_job.update!(
@@ -53,6 +54,7 @@ describe Admin::Sensemaker::JobShowComponent do
 
         data_folder = Sensemaker::Paths.sensemaker_data_folder
         FileUtils.mkdir_p(data_folder)
+        FileUtils.mkdir_p(File.dirname(artefact_path))
         File.write(input_path, "comment-id,comment_text\n1,test")
         File.write(artefact_path, "test")
       end
@@ -65,6 +67,11 @@ describe Admin::Sensemaker::JobShowComponent do
         expect(page).to have_content("Output files")
         expect(page).to have_link(File.basename(input_path))
         expect(page).to have_link(File.basename(artefact_path))
+        expected_relative = "job-#{sensemaker_job.id}/#{File.basename(artefact_path)}"
+        encoded_relative = CGI.escape(expected_relative)
+        expect(page.native.to_html).to include(
+          "/admin/sensemaker/jobs/#{sensemaker_job.id}/download?artefact=#{encoded_relative}"
+        )
       end
     end
 
