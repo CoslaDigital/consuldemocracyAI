@@ -11,6 +11,19 @@ describe Admin::Sensemaker::JobsController do
 
   before { sign_in(admin) }
 
+  def create_report_ui_job_with_output(attrs = {})
+    job = create(:sensemaker_job, :publishable,
+                 user: admin,
+                 analysable_type: "Debate",
+                 analysable_id: debate.id,
+                 published: false,
+                 **attrs)
+    output_path = job.default_output_path
+    FileUtils.mkdir_p(File.dirname(output_path))
+    File.write(output_path, "<html><body>Test Report</body></html>")
+    job
+  end
+
   describe "GET #index" do
     it "returns successful response" do
       get :index
@@ -173,7 +186,7 @@ describe Admin::Sensemaker::JobsController do
         sensemaker_job: {
           analysable_type: "Debate",
           analysable_id: debate.id,
-          script: "categorization_runner.ts",
+          script: "categorize",
           additional_context: "Test context"
         }
       }
@@ -192,7 +205,7 @@ describe Admin::Sensemaker::JobsController do
       expect(job.user).to eq(admin)
       expect(job.analysable_type).to eq("Debate")
       expect(job.analysable_id).to eq(debate.id)
-      expect(job.script).to eq("categorization_runner.ts")
+      expect(job.script).to eq("categorize")
       expect(job.started_at).to be_present
     end
 
@@ -247,7 +260,7 @@ describe Admin::Sensemaker::JobsController do
         sensemaker_job: {
           analysable_type: "Debate",
           analysable_id: debate.id,
-          script: "categorization_runner.ts"
+          script: "categorize"
         }
       }
     end
@@ -258,7 +271,7 @@ describe Admin::Sensemaker::JobsController do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Additional context")
       expect(response.body).to include("Input CSV")
-      expect(response.body).to include("comment-id,comment_text")
+      expect(response.body).to include("participant_id,survey_text")
     end
 
     it "handles missing analysable" do
@@ -308,27 +321,11 @@ describe Admin::Sensemaker::JobsController do
   end
 
   describe "PATCH #publish" do
-    let(:successful_job) do
-      output_path = Rails.root.join("tmp", "test-report-#{SecureRandom.hex}.html").to_s
-      FileUtils.mkdir_p(File.dirname(output_path))
-      File.write(output_path, "<html><body>Test Report</body></html>")
-
-      create(:sensemaker_job,
-             user: admin,
-             analysable_type: "Debate",
-             analysable_id: debate.id,
-             script: "single-html-build.js",
-             started_at: 1.hour.ago,
-             finished_at: Time.current,
-             error: nil,
-             published: false,
-             persisted_output: output_path)
-    end
+    let(:successful_job) { create_report_ui_job_with_output }
 
     after do
-      if successful_job&.persisted_output.present?
-        FileUtils.rm_f(successful_job.persisted_output)
-      end
+      output_path = successful_job&.default_output_path
+      FileUtils.rm_f(output_path) if output_path.present? && File.exist?(output_path)
     end
 
     context "when job is eligible for publishing" do
@@ -353,7 +350,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "report_ui",
                started_at: Time.current,
                finished_at: nil,
                error: nil,
@@ -381,7 +378,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "report_ui",
                started_at: 1.hour.ago,
                finished_at: Time.current,
                error: "Some error occurred",
@@ -409,7 +406,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "report_ui",
                started_at: 1.hour.ago,
                finished_at: Time.current,
                error: nil,
@@ -434,26 +431,23 @@ describe Admin::Sensemaker::JobsController do
 
     context "when job script is not publishable" do
       let(:non_publishable_job) do
-        output_path = Rails.root.join("tmp", "test-report-#{SecureRandom.hex}.html").to_s
+        job = create(:sensemaker_job, :categorize,
+                     user: admin,
+                     analysable_type: "Debate",
+                     analysable_id: debate.id,
+                     started_at: 1.hour.ago,
+                     finished_at: Time.current,
+                     error: nil,
+                     published: false)
+        output_path = job.default_output_path
         FileUtils.mkdir_p(File.dirname(output_path))
-        File.write(output_path, "<html><body>Test Report</body></html>")
-
-        create(:sensemaker_job,
-               user: admin,
-               analysable_type: "Debate",
-               analysable_id: debate.id,
-               script: "categorization_runner.ts",
-               started_at: 1.hour.ago,
-               finished_at: Time.current,
-               error: nil,
-               published: false,
-               persisted_output: output_path)
+        File.write(output_path, "participant_id,survey_text\n")
+        job
       end
 
       after do
-        if non_publishable_job&.persisted_output.present?
-          FileUtils.rm_f(non_publishable_job.persisted_output)
-        end
+        output_path = non_publishable_job&.default_output_path
+        FileUtils.rm_f(output_path) if output_path.present? && File.exist?(output_path)
       end
 
       it "does not publish the job" do
@@ -470,83 +464,18 @@ describe Admin::Sensemaker::JobsController do
         expect(flash[:alert]).to be_present
       end
     end
-
-    context "when job script is runner.ts" do
-      let(:runner_job) do
-        data_folder = Sensemaker::Paths.sensemaker_data_folder
-        base_path = File.join(data_folder, "output-#{SecureRandom.hex}")
-        output_files = [
-          "#{base_path}-summary.json",
-          "#{base_path}-summary.html",
-          "#{base_path}-summary.md",
-          "#{base_path}-summaryAndSource.csv"
-        ]
-
-        FileUtils.mkdir_p(File.dirname(base_path))
-        output_files.each { |file| File.write(file, "test content") }
-
-        create(:sensemaker_job,
-               user: admin,
-               analysable_type: "Debate",
-               analysable_id: debate.id,
-               script: "runner.ts",
-               started_at: 1.hour.ago,
-               finished_at: Time.current,
-               error: nil,
-               published: false,
-               persisted_output: base_path)
-      end
-
-      after do
-        if runner_job&.persisted_output.present?
-          base_path = runner_job.persisted_output
-          [
-            "#{base_path}-summary.json",
-            "#{base_path}-summary.html",
-            "#{base_path}-summary.md",
-            "#{base_path}-summaryAndSource.csv"
-          ].each { |file| FileUtils.rm_f(file) }
-        end
-      end
-
-      it "publishes the job" do
-        patch :publish, params: { id: runner_job.id }
-
-        runner_job.reload
-        expect(runner_job.published).to be true
-      end
-
-      it "redirects to job show page with success notice" do
-        patch :publish, params: { id: runner_job.id }
-
-        expect(response).to redirect_to(admin_sensemaker_job_path(runner_job))
-        expect(flash[:notice]).to be_present
-      end
-    end
   end
 
   describe "PATCH #unpublish" do
     let(:published_job) do
-      output_path = Rails.root.join("tmp", "test-report-#{SecureRandom.hex}.html").to_s
-      FileUtils.mkdir_p(File.dirname(output_path))
-      File.write(output_path, "<html><body>Test Report</body></html>")
-
-      create(:sensemaker_job,
-             user: admin,
-             analysable_type: "Debate",
-             analysable_id: debate.id,
-             script: "single-html-build.js",
-             started_at: 1.hour.ago,
-             finished_at: Time.current,
-             error: nil,
-             published: true,
-             persisted_output: output_path)
+      job = create_report_ui_job_with_output
+      job.update!(published: true)
+      job
     end
 
     after do
-      if published_job&.persisted_output.present?
-        FileUtils.rm_f(published_job.persisted_output)
-      end
+      output_path = published_job&.default_output_path
+      FileUtils.rm_f(output_path) if output_path.present? && File.exist?(output_path)
     end
 
     it "unpublishes the job" do

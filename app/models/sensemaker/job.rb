@@ -265,6 +265,7 @@ module Sensemaker
       end
 
       def set_persisted_output_if_successful
+        return if id.blank?
         return unless finished_at.present? && error.nil?
         return if persisted_output.present?
 

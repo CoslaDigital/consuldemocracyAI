@@ -319,7 +319,7 @@ describe Sensemaker::JobsController do
       end
 
       it "serves file using resolved path when persisted_output is relative" do
-        relative_path = "tmp/sensemaker_test_folder/data/report-#{job.id}.html"
+        relative_path = job.relative_primary_artefact_path
         resolved = Rails.root.join(relative_path)
         FileUtils.mkdir_p(File.dirname(resolved))
         File.write(resolved, "<html><body>Resolved report</body></html>")

@@ -38,5 +38,11 @@ FactoryBot.define do
     trait :report_ui do
       script { "report_ui" }
     end
+
+    trait :publishable do
+      script { "report_ui" }
+      finished_at { Time.current }
+      error { nil }
+    end
   end
 end
