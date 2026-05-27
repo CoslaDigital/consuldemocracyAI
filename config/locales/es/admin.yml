@@ -1832,10 +1832,9 @@ es:
         select_target: "Selecciona un objetivo de los resultados"
         results: "resultados"
         analysing: "Analizando"
-        review_context: "Revisa el contexto adicional, luego selecciona un script para ejecutar."
+        review_context: "Revisa el contexto adicional, luego usa Generar informe o selecciona un script en opciones avanzadas."
         additional_context_label: "Contexto adicional"
         additional_context_hint: "Texto opcional que ayuda a orientar el análisis. Por ejemplo, describe brevemente de qué trata la conversación para que la IA tenga contexto. El título y la descripción del objetivo ya se incluyen."
-        generate_summary: "Generar resumen"
         generate_report: "Generar informe"
         advanced_options: "Opciones avanzadas"
         expert_options_hint: "Para usuarios expertos. Ejecuta cualquier script de Sensemaker eligiendo en el desplegable."
@@ -1893,13 +1892,13 @@ es:
         title_2: "¿Cómo funciona Sensemaker?"
         description_2: "Sensemaker utiliza LLMs (modelos de lenguaje grandes) para analizar conversaciones e identificar patrones. Sensemaker realizará un análisis sobre los comentarios asociados con un recurso objetivo, por ejemplo, un debate, propuesta, encuesta, tema, proceso legislativo. Los detalles sobre el recurso objetivo (por ejemplo, título, descripción) se utilizarán como contexto adicional para apoyar el análisis."
         title_3: "¿Cómo usar Sensemaker?"
-        description_3: "Para usar Sensemaker, ve a la pestaña Análisis Sensemaker, luego haz clic en el botón 'Nueva Ejecución'. Busca un recurso objetivo y selecciónalo. Añade cualquier contexto adicional si es necesario y selecciona un script para ejecutar."
+        description_3: "Para usar Sensemaker, ve a la pestaña Análisis Sensemaker, luego haz clic en el botón 'Nueva Ejecución'. Busca un recurso objetivo y selecciónalo. Añade contexto adicional si es necesario y haz clic en Generar informe para el pipeline completo."
         title_4: "Scripts disponibles"
         description_4: "Los siguientes scripts están disponibles:"
       notice:
         cancelled_jobs: "Todos los trabajos de sensemaker han sido cancelados."
         script_info: "El script se ha encolado correctamente."
-        script_required: "Selecciona un script en las opciones avanzadas o usa Generar resumen / Generar informe."
+        script_required: "Selecciona un script en las opciones avanzadas o usa Generar informe."
         output_file_not_found: "Archivo de salida no encontrado"
         deleted_job: "Trabajo de análisis eliminado correctamente"
         cannot_publish: "El análisis no se puede publicar porque no está terminado o tiene errores o no tiene un archivo de salida."
@@ -1907,21 +1906,21 @@ es:
         unpublished: "El análisis se ha despublicado correctamente."
       delete_alert: "¿Seguro que quieres eliminar este análisis? Esta acción no se puede deshacer"
       scripts:
-        health_check_runner_ts:
+        health_check:
           title: "Realizar verificación de salud"
-          description: "Verificación de salud para comprobar que sensemaker funciona"
-        categorization_runner_ts:
+          description: "Comprobar conectividad y configuración del LLM"
+        categorize:
           title: "Categorizar"
-          description: "Categorizar comentarios en temas y subtemas"
-        runner_ts:
-          title: "Resumir"
-          description: "Generar un resumen de la conversación"
-        advanced_runner_ts:
-          title: "Analizar"
-          description: "Analizar la conversación con estadísticas"
-        single_html_build_js:
-          title: "Informe"
-          description: "Analizar y generar un informe en formato HTML"
+          description: "Descubrir temas y extraer citas representativas"
+        bridge_scores:
+          title: "Puntuaciones de bridging"
+          description: "Puntuar citas según atributos de bridging"
+        report_text:
+          title: "Generar datos del informe"
+          description: "Producir JSON estructurado del informe con resúmenes por tema"
+        report_ui:
+          title: "Generar informe interactivo"
+          description: "Ejecutar el pipeline completo y generar un informe HTML para publicar"
     cookies:
       vendors:
         empty: No se han encontrado cookies de terceros

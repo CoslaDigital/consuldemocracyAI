@@ -193,25 +193,7 @@ describe Admin::Sensemaker::JobsController do
     end
 
     context "with quick_action" do
-      it "creates job with runner.ts when quick_action is summary" do
-        allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
-        allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
-        allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
-
-        post :create, params: {
-          sensemaker_job: {
-            analysable_type: "Debate",
-            analysable_id: debate.id,
-            additional_context: "Test"
-          },
-          quick_action: "summary"
-        }
-
-        job = Sensemaker::Job.last
-        expect(job.script).to eq("runner.ts")
-      end
-
-      it "creates job with single-html-build.js when quick_action is report" do
+      it "creates job with report_ui when quick_action is report" do
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
@@ -226,7 +208,7 @@ describe Admin::Sensemaker::JobsController do
         }
 
         job = Sensemaker::Job.last
-        expect(job.script).to eq("single-html-build.js")
+        expect(job.script).to eq("report_ui")
       end
     end
 
