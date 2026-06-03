@@ -79,8 +79,8 @@ describe Sensemaker::JobIndexComponent do
   end
 
   describe "#script_type_tag" do
-    context "when script is single-html-build.js" do
-      let(:job) { create(:sensemaker_job, script: "single-html-build.js") }
+    context "when script is sensemaking-report-ui" do
+      let(:job) { create(:sensemaker_job, script: "sensemaking-report-ui") }
 
       it "returns Report" do
         render_inline component
@@ -140,7 +140,7 @@ describe Sensemaker::JobIndexComponent do
         create(:sensemaker_job,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "sensemaking-report-ui",
                finished_at: Time.current,
                comments_analysed: 10)
       end

@@ -7,7 +7,7 @@ describe Sensemaker::JobCardComponent do
     create(:sensemaker_job,
            analysable_type: "Debate",
            analysable_id: create(:debate).id,
-           script: "single-html-build.js",
+           script: "sensemaking-report-ui",
            finished_at: Time.current,
            comments_analysed: 5)
   end
