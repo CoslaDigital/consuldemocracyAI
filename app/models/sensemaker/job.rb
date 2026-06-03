@@ -160,7 +160,7 @@ module Sensemaker
         current_input_file
       elsif script == "advanced_runner.ts"
         "#{Sensemaker::Paths.sensemaker_data_folder}/categorization-output-#{id}.csv"
-      elsif script == "single-html-build.js"
+      elsif script == "sensemaking-report-ui"
         "#{Sensemaker::Paths.sensemaker_data_folder}/advanced-output"
       else
         "#{Sensemaker::Paths.sensemaker_data_folder}/input-#{id}.csv"
@@ -172,11 +172,12 @@ module Sensemaker
       return [] if base_path.blank?
 
       case script
-      when "single-html-build.js"
+      when "sensemaking-report-ui"
         [
           "#{base_path}-topic-stats.json",
           "#{base_path}-summary.json",
-          "#{base_path}-comments-with-scores.json"
+          "#{base_path}-comments-with-scores.json",
+          "#{base_path}-metadata.json"
         ]
       else
         [base_path]

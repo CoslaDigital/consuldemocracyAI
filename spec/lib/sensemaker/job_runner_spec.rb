@@ -15,9 +15,13 @@ describe Sensemaker::JobRunner do
 
   shared_context "sensemaker paths stubbed" do
     let(:data_folder) { "/tmp/sensemaker_test_folder/data" }
+    let(:report_ui_folder) { "/tmp/sensemaker_test_folder/report-ui" }
 
     before do
-      allow(Sensemaker::Paths).to receive(:sensemaker_data_folder).and_return(data_folder)
+      allow(Sensemaker::Paths).to receive_messages(
+        sensemaker_data_folder: data_folder,
+        report_ui_folder: report_ui_folder
+      )
     end
   end
 
@@ -337,19 +341,25 @@ describe Sensemaker::JobRunner do
       expect(command).not_to include("--vertexProject")
     end
 
-    it "returns the correct command for the single-html-build script" do
-      service.job.update!(script: "single-html-build.js")
+    it "returns the correct command for the sensemaking-report-ui script" do
+      service.job.update!(script: "sensemaking-report-ui")
       allow(service.job.conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
 
       command = service.build_command
 
-      expect(command).to include("npx ts-node site-build.ts")
-      expect(command).to include("--topics #{job.input_file}-topic-stats.json")
-      expect(command).to include("--summary #{job.input_file}-summary.json")
-      expect(command).to include("--comments #{job.input_file}-comments-with-scores.json")
-      expect(command).to include('--reportTitle "Report for Test Label"')
-
-      expect(command).to include("npx ts-node single-html-build.js --outputFile #{service.output_file}")
+      expect(command).to include("npx sensemaking-report-ui inline")
+      expect(command).to include("--topics")
+      expect(command).to include("#{job.input_file}-topic-stats.json")
+      expect(command).to include("--summary")
+      expect(command).to include("#{job.input_file}-summary.json")
+      expect(command).to include("--comments")
+      expect(command).to include("#{job.input_file}-comments-with-scores.json")
+      expect(command).to include("--metadata")
+      expect(command).to include("#{job.input_file}-metadata.json")
+      expect(command).to include(Shellwords.escape("Report for Test Label"))
+      expect(command).to include("--outputDir")
+      expect(command).to include("--outputFile")
+      expect(command).to include(service.output_file_name)
     end
   end
 
@@ -358,14 +368,18 @@ describe Sensemaker::JobRunner do
 
     package_folder = Sensemaker::Paths.sensemaker_package_folder
     runner_cli = "#{package_folder}/runner-cli"
-    viz_folder = Sensemaker::Paths.visualization_folder
+    report_ui = "/tmp/sensemaker_test_folder/report-ui"
+
+    before do
+      allow(Sensemaker::Paths).to receive(:report_ui_folder).and_return(report_ui)
+    end
 
     {
       "categorization_runner.ts" => "#{runner_cli}/categorization_runner.ts",
       "runner.ts" => "#{runner_cli}/runner.ts",
       "advanced_runner.ts" => "#{runner_cli}/advanced_runner.ts",
       "health_check_runner.ts" => "#{runner_cli}/health_check_runner.ts",
-      "single-html-build.js" => "#{viz_folder}/single-html-build.js"
+      "sensemaking-report-ui" => "#{report_ui}/bin/cli.js"
     }.each do |script, expected_path|
       it "returns the correct path for #{script}" do
         job.script = script
@@ -572,20 +586,22 @@ describe Sensemaker::JobRunner do
       end
     end
 
-    context "when script is single-html-build.js with blank input_file" do
+    context "when script is sensemaking-report-ui with blank input_file" do
       let(:advanced_job) { create(:sensemaker_job, comments_analysed: 15) }
 
       before do
-        job.script = "single-html-build.js"
+        job.script = "sensemaking-report-ui"
         job.input_file = nil
       end
 
       it "calls prepare_with_advanced_runner_job and returns its comments_analysed count" do
         allow(service).to receive(:prepare_with_advanced_runner_job).and_return(15)
+        allow(service).to receive(:write_report_metadata)
 
         result = service.send(:prepare_input_data)
 
         expect(result).to eq(15)
+        expect(service).to have_received(:write_report_metadata)
       end
     end
 
