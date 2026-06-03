@@ -53,12 +53,12 @@ namespace :sensemaker do
 
       check_dependencies(logger)
       ensure_package_in_package_json(logger, "@cosla/sensemaking-tools")
-      ensure_web_ui_package_in_package_json(logger)
+      ensure_report_ui_package_in_package_json(logger)
 
       logger.info "Using sensemaking-tools package path: #{package_path}"
       logger.info "Using sensemaking-tools folder: #{sensemaker_path}"
 
-      ensure_angular_build_for_web_ui(logger)
+      check_report_ui_package(logger)
       setup_sensemaker_directory(sensemaker_path, logger)
       verify_cli_available(package_path, logger)
       check_key_file(logger)
@@ -70,9 +70,9 @@ namespace :sensemaker do
       check_directories(logger)
       check_key_file(logger)
       check_package(logger)
+      check_report_ui_package(logger)
       check_is_enabled(logger)
-      ensure_angular_build_for_web_ui(logger)
-      check_web_ui_health(logger)
+      check_report_ui_health(logger)
       check_sensemaker_cli(logger)
       logger.info "Sensemaker installation verified you can now use the Sensemaker Tools."
     end
@@ -158,65 +158,26 @@ namespace :sensemaker do
       end
     end
 
-    def check_web_ui_health(logger)
-      logger.info "Checking web-ui health..."
+    def check_report_ui_health(logger)
+      logger.info "Checking report-ui health..."
 
-      visualization_path = Sensemaker::Paths.visualization_folder
-      output_file = "#{Sensemaker::Paths.sensemaker_data_folder}/health-check-#{Time.current.to_i}.html"
+      report_ui_path = Sensemaker::Paths.report_ui_folder
 
-      command = %Q(node #{visualization_path}/health_check.js --outputFile #{output_file})
+      unless File.directory?(report_ui_path)
+        raise "Report UI package not found at: #{report_ui_path}. Run npm install."
+      end
 
-      output = `cd #{visualization_path} && #{command} 2>&1`
+      command = "cd #{report_ui_path} && npm run smoke 2>&1"
+      output = `#{command}`
       result = $?.exitstatus
 
       if result.eql?(0)
-        logger.info "✓ Web-ui health check passed."
+        logger.info "✓ Report-ui smoke tests passed."
         logger.info output
       else
-        logger.warn "✗ Web-ui health check failed."
+        logger.warn "✗ Report-ui smoke tests failed."
         logger.warn output
-        raise "Web-ui health check failed."
-      end
-    end
-
-    def ensure_angular_build_for_web_ui(logger)
-      logger.info "Ensuring Angular build for web-ui..."
-
-      visualization_path = Sensemaker::Paths.visualization_folder
-      dist_path = File.join(visualization_path, "dist/web-ui/browser")
-      build_exists = File.directory?(dist_path) && File.exist?(File.join(dist_path, "index.csr.html"))
-
-      logger.info "Installing Angular build dependencies..."
-      install_command = "cd #{visualization_path} && npm install --include=dev 2>&1"
-      install_output = `#{install_command}`
-      install_result = $?.exitstatus
-
-      if !install_result.eql?(0)
-        logger.warn "✗ Failed to install dependencies"
-        logger.warn install_output
-        raise "Failed to install Angular build dependencies"
-      end
-
-      logger.info "✓ Dependencies installed"
-
-      if build_exists
-        logger.info "✓ Angular build already exists at: #{dist_path}"
-        logger.info "Skipping build step."
-        return
-      end
-
-      logger.info "Building Angular app..."
-
-      build_command = "cd #{visualization_path} && npm run build -- --configuration development 2>&1"
-      build_output = `#{build_command}`
-      result = $?.exitstatus
-
-      if result.eql?(0)
-        logger.info "✓ Angular build for web-ui completed successfully."
-      else
-        logger.warn "✗ Angular build for web-ui failed"
-        logger.warn build_output
-        raise "Angular build for web-ui failed."
+        raise "Report-ui health check failed."
       end
     end
 
@@ -252,6 +213,31 @@ namespace :sensemaker do
       else
         logger.warn "✗ sensemaking-tools package not found at: #{package_path}"
         raise "sensemaking-tools package not found. Run 'npm install' first."
+      end
+    end
+
+    def check_report_ui_package(logger)
+      package_path = Sensemaker::Paths.report_ui_folder
+
+      if File.directory?(package_path)
+        logger.info "✓ sensemaking-report-ui package found: #{package_path}"
+
+        package_json_path = File.join(package_path, "package.json")
+        if File.exist?(package_json_path)
+          package_json = JSON.parse(File.read(package_json_path))
+          version = package_json["version"]
+          logger.info "✓ Installed version: #{version}"
+        end
+
+        cli_path = File.join(package_path, "bin/cli.js")
+        unless File.exist?(cli_path)
+          logger.warn "✗ sensemaking-report-ui CLI not found at: #{cli_path}"
+          raise "sensemaking-report-ui CLI not found. Reinstall with npm install."
+        end
+        logger.info "✓ sensemaking-report-ui CLI found: #{cli_path}"
+      else
+        logger.warn "✗ sensemaking-report-ui package not found at: #{package_path}"
+        raise "sensemaking-report-ui package not found. Run 'npm install' first."
       end
     end
 
@@ -382,8 +368,8 @@ namespace :sensemaker do
       end
     end
 
-    def ensure_web_ui_package_in_package_json(logger)
-      ensure_package_in_package_json(logger, "@cosla/sensemaking-web-ui")
+    def ensure_report_ui_package_in_package_json(logger)
+      ensure_package_in_package_json(logger, "@cosla/sensemaking-report-ui", suggested_version: "^0.1.1")
     end
 
     def verify_cli_available(package_path, logger)
