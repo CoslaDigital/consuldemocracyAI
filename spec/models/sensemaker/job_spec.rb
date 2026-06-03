@@ -299,21 +299,32 @@ describe Sensemaker::Job do
         expect(job.input_artefact_paths).to eq([])
       end
 
-      it "returns a single path for non single-html scripts" do
+      it "returns a single path for single-input scripts" do
         job.script = "runner.ts"
         job.input_file = "/tmp/input-#{job.id}.csv"
         expect(job.input_artefact_paths).to eq([job.input_file])
       end
 
-      it "returns derived JSON artefacts for single-html-build.js" do
-        job.script = "single-html-build.js"
+      it "returns derived JSON artefacts for sensemaking-report-ui" do
+        job.script = "sensemaking-report-ui"
         job.input_file = "/tmp/output-#{job.id}"
 
         expect(job.input_artefact_paths).to eq([
           "#{job.input_file}-topic-stats.json",
           "#{job.input_file}-summary.json",
-          "#{job.input_file}-comments-with-scores.json"
+          "#{job.input_file}-comments-with-scores.json",
+          "#{job.input_file}-metadata.json"
         ])
+      end
+    end
+
+    describe "#input_file" do
+      include_context "sensemaker paths stubbed"
+
+      it "defaults to advanced-output for report script when input_file is not set" do
+        job.script = "sensemaking-report-ui"
+        job[:input_file] = nil
+        expect(job.input_file).to eq("#{data_folder}/advanced-output")
       end
     end
 
@@ -331,16 +342,18 @@ describe Sensemaker::Job do
         expect(job.existing_input_artefact_paths).to eq([existing_path])
       end
 
-      it "returns only existing derived input artefacts for single-html-build.js" do
-        job.script = "single-html-build.js"
+      it "returns only existing derived input artefacts for sensemaking-report-ui" do
+        job.script = "sensemaking-report-ui"
         job.input_file = "/tmp/output-#{job.id}"
         existing = "#{job.input_file}-summary.json"
         missing_1 = "#{job.input_file}-topic-stats.json"
         missing_2 = "#{job.input_file}-comments-with-scores.json"
+        missing_3 = "#{job.input_file}-metadata.json"
 
         allow(File).to receive(:exist?).with(existing).and_return(true)
         allow(File).to receive(:exist?).with(missing_1).and_return(false)
         allow(File).to receive(:exist?).with(missing_2).and_return(false)
+        allow(File).to receive(:exist?).with(missing_3).and_return(false)
 
         expect(job.existing_input_artefact_paths).to eq([existing])
       end

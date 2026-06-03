@@ -10,7 +10,7 @@ module Sensemaker
       "categorization_runner.ts",
       "runner.ts",
       "advanced_runner.ts",
-      "single-html-build.js"
+      "sensemaking-report-ui"
     ].freeze
 
     def initialize(job)
@@ -35,8 +35,8 @@ module Sensemaker
     end
 
     def script_file
-      if job.script == "single-html-build.js"
-        "#{Sensemaker::Paths.visualization_folder}/single-html-build.js"
+      if job.script == "sensemaking-report-ui"
+        "#{Sensemaker::Paths.report_ui_folder}/bin/cli.js"
       else
         "#{Sensemaker::Paths.sensemaker_package_folder}/runner-cli/#{job.script}"
       end
@@ -63,16 +63,22 @@ module Sensemaker
     end
 
     def build_command
-      if job.script == "single-html-build.js"
+      if job.script == "sensemaking-report-ui"
         conversation = job.conversation
         target_label = conversation.target_label(format: :full)
+        base = job.input_file
+        data_folder = Sensemaker::Paths.sensemaker_data_folder
 
-        return %Q(npx ts-node site-build.ts \
-                 --topics #{job.input_file}-topic-stats.json \
-                 --summary #{job.input_file}-summary.json \
-                 --comments #{job.input_file}-comments-with-scores.json \
-                 --reportTitle "Report for #{target_label}" && \
-                 npx ts-node single-html-build.js --outputFile #{output_file})
+        return [
+          "npx sensemaking-report-ui inline",
+          "--topics #{Shellwords.escape("#{base}-topic-stats.json")}",
+          "--summary #{Shellwords.escape("#{base}-summary.json")}",
+          "--comments #{Shellwords.escape("#{base}-comments-with-scores.json")}",
+          "--metadata #{Shellwords.escape("#{base}-metadata.json")}",
+          "--reportTitle #{Shellwords.escape("Report for #{target_label}")}",
+          "--outputDir #{Shellwords.escape(data_folder.to_s)}",
+          "--outputFile #{Shellwords.escape(output_file_name)}"
+        ].join(" ")
       end
 
       model_name = runtime_config.model
@@ -196,7 +202,7 @@ module Sensemaker
 
         if persisted_input_missing && job.script.eql?("advanced_runner.ts")
           comments_prepared_count = prepare_with_categorization_job
-        elsif persisted_input_missing && job.script.eql?("single-html-build.js")
+        elsif persisted_input_missing && job.script.eql?("sensemaking-report-ui")
           comments_prepared_count = prepare_with_advanced_runner_job
         elsif persisted_input_missing
           comments_prepared_count = conversation.comments.size
@@ -210,7 +216,18 @@ module Sensemaker
           comments_prepared_count = Sensemaker::CsvExporter.filter_zero_vote_comments_from_csv(job.input_file)
         end
 
+        write_report_metadata if job.script.eql?("sensemaking-report-ui")
+
         comments_prepared_count
+      end
+
+      def write_report_metadata
+        metadata_path = "#{job.input_file}-metadata.json"
+        return if File.exist?(metadata_path)
+
+        conversation = job.conversation
+        title = conversation.target_label(format: :full)
+        File.write(metadata_path, { title: title }.to_json)
       end
 
       def check_dependencies?
@@ -280,15 +297,13 @@ module Sensemaker
         return false unless file_exists?(Sensemaker::Paths.sensemaker_data_folder,
                                          description: "Sensemaker data folder")
 
-        if job.script == "single-html-build.js"
-          return false unless file_exists?(Sensemaker::Paths.visualization_folder,
-                                           description: "Visualization folder")
-          return false unless file_exists?(job.input_file + "-topic-stats.json",
-                                           description: "Input file - topic stats")
-          return false unless file_exists?(job.input_file + "-summary.json",
-                                           description: "Input file - summary")
-          return false unless file_exists?(job.input_file + "-comments-with-scores.json",
-                                           description: "Input file - comments with scores")
+        if job.script == "sensemaking-report-ui"
+          return false unless file_exists?(Sensemaker::Paths.report_ui_folder,
+                                           description: "sensemaking-report-ui package folder")
+
+          job.input_artefact_paths.each do |artefact_path|
+            return false unless file_exists?(artefact_path, description: "Report input artefact")
+          end
         else
           return false unless file_exists?(job.input_file, description: "Input file")
         end
@@ -299,8 +314,11 @@ module Sensemaker
       end
 
       def execute_script
-        target_folder = Sensemaker::Paths.sensemaker_package_folder
-        target_folder = Sensemaker::Paths.visualization_folder if job.script == "single-html-build.js"
+        target_folder = if job.script == "sensemaking-report-ui"
+                          Rails.root
+                        else
+                          Sensemaker::Paths.sensemaker_package_folder
+                        end
 
         command = "cd #{target_folder} && timeout #{TIMEOUT} #{build_command}"
         Rails.logger.debug("Executing script: #{redact_command(command)}")
