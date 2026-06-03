@@ -1919,7 +1919,7 @@ es:
         advanced_runner_ts:
           title: "Analizar"
           description: "Analizar la conversación con estadísticas"
-        single_html_build_js:
+        sensemaking_report_ui:
           title: "Informe"
           description: "Analizar y generar un informe en formato HTML"
     cookies:

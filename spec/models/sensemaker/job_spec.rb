@@ -53,7 +53,7 @@ describe Sensemaker::Job do
 
       context "when job is publishable" do
         before do
-          job.script = "single-html-build.js"
+          job.script = "sensemaking-report-ui"
           job.finished_at = Time.current
           job.error = nil
           output_path = "#{data_folder}/report-#{job.id}.html"
@@ -480,9 +480,9 @@ describe Sensemaker::Job do
         allow(File).to receive(:exist?).and_return(false)
       end
 
-      context "when script is single-html-build.js" do
+      context "when script is sensemaking-report-ui" do
         before do
-          job.script = "single-html-build.js"
+          job.script = "sensemaking-report-ui"
           job.finished_at = Time.current
           job.error = nil
         end

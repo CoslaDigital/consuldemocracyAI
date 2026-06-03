@@ -211,7 +211,7 @@ describe Admin::Sensemaker::JobsController do
         expect(job.script).to eq("runner.ts")
       end
 
-      it "creates job with single-html-build.js when quick_action is report" do
+      it "creates job with sensemaking-report-ui when quick_action is report" do
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
@@ -226,7 +226,7 @@ describe Admin::Sensemaker::JobsController do
         }
 
         job = Sensemaker::Job.last
-        expect(job.script).to eq("single-html-build.js")
+        expect(job.script).to eq("sensemaking-report-ui")
       end
     end
 
@@ -323,7 +323,7 @@ describe Admin::Sensemaker::JobsController do
              user: admin,
              analysable_type: "Debate",
              analysable_id: debate.id,
-             script: "single-html-build.js",
+             script: "sensemaking-report-ui",
              started_at: 1.hour.ago,
              finished_at: Time.current,
              error: nil,
@@ -359,7 +359,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "sensemaking-report-ui",
                started_at: Time.current,
                finished_at: nil,
                error: nil,
@@ -387,7 +387,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "sensemaking-report-ui",
                started_at: 1.hour.ago,
                finished_at: Time.current,
                error: "Some error occurred",
@@ -415,7 +415,7 @@ describe Admin::Sensemaker::JobsController do
                user: admin,
                analysable_type: "Debate",
                analysable_id: debate.id,
-               script: "single-html-build.js",
+               script: "sensemaking-report-ui",
                started_at: 1.hour.ago,
                finished_at: Time.current,
                error: nil,
@@ -541,7 +541,7 @@ describe Admin::Sensemaker::JobsController do
              user: admin,
              analysable_type: "Debate",
              analysable_id: debate.id,
-             script: "single-html-build.js",
+             script: "sensemaking-report-ui",
              started_at: 1.hour.ago,
              finished_at: Time.current,
              error: nil,

@@ -1871,7 +1871,7 @@ en:
         advanced_runner_ts:
           title: "Analyse"
           description: "Analyse the conversation with statistics"
-        single_html_build_js:
+        sensemaking_report_ui:
           title: "Report"
           description: "Analyse and generate a report in HTML format"
     machine_learning:
