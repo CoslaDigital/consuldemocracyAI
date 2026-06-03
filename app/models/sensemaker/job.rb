@@ -15,7 +15,7 @@ module Sensemaker
     ].freeze
 
     PUBLISHABLE_SCRIPTS = [
-      "single-html-build.js",
+      "sensemaking-report-ui",
       "runner.ts"
     ].freeze
 
