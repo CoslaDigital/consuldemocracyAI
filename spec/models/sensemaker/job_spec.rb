@@ -63,7 +63,7 @@ describe Sensemaker::Job do
         expect(job.has_multiple_outputs?).to be false
         job.script = "health_check_runner.ts"
         expect(job.has_multiple_outputs?).to be false
-        job.script = "single-html-build.js"
+        job.script = "sensemaking-report-ui"
         expect(job.has_multiple_outputs?).to be false
       end
     end
@@ -74,7 +74,7 @@ describe Sensemaker::Job do
         "advanced_runner.ts" => ->(j) { "output-#{j.id}" },
         "runner.ts" => ->(j) { "output-#{j.id}" },
         "health_check_runner.ts" => ->(j) { "health-check-#{j.id}.txt" },
-        "single-html-build.js" => ->(j) { "report-#{j.id}.html" }
+        "sensemaking-report-ui" => ->(j) { "report-#{j.id}.html" }
       }.each do |script, expected_fn|
         it "returns the correct output file name for #{script}" do
           job.script = script
@@ -163,7 +163,7 @@ describe Sensemaker::Job do
 
       {
         "advanced_runner.ts" => ->(j, rel_df) { "#{rel_df}/output-#{j.id}" },
-        "single-html-build.js" => ->(j, rel_df) { "#{rel_df}/report-#{j.id}.html" }
+        "sensemaking-report-ui" => ->(j, rel_df) { "#{rel_df}/report-#{j.id}.html" }
       }.each do |script, expected_path_fn|
         it "returns the correct relative path for #{script}" do
           job.script = script
@@ -342,7 +342,7 @@ describe Sensemaker::Job do
            "#{df}/output-#{j.id}-comments-with-scores.json"]
         },
         "categorization_runner.ts" => ->(j, df) { ["#{df}/categorization-output-#{j.id}.csv"] },
-        "single-html-build.js" => ->(j, df) { ["#{df}/report-#{j.id}.html"] },
+        "sensemaking-report-ui" => ->(j, df) { ["#{df}/report-#{j.id}.html"] },
         "runner.ts" => ->(j, df) {
           ["#{df}/output-#{j.id}-summary.json", "#{df}/output-#{j.id}-summary.html",
            "#{df}/output-#{j.id}-summary.md", "#{df}/output-#{j.id}-summaryAndSource.csv"]

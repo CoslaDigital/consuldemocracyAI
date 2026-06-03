@@ -94,7 +94,7 @@ module Sensemaker
         "output-#{id}"
       when "categorization_runner.ts"
         "categorization-output-#{id}.csv"
-      when "single-html-build.js"
+      when "sensemaking-report-ui"
         "report-#{id}.html"
       else
         "output-#{id}.csv"
