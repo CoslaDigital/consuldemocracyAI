@@ -2,12 +2,14 @@ require "shellwords"
 
 module Sensemaker
   class JobRunner
-    TIMEOUT = 1800
+    TIMEOUT = 2800
     MAX_CLI_ERROR_OUTPUT = 20_000
     CLI_OUTPUT_TRUNCATION_OMISSION = "\n\n…[output truncated; showing end of log]…\n\n".freeze
 
-    CONTEXT_SCRIPTS = %w[categorize report_text].freeze
-    INPUT_SCRIPTS = %w[categorize bridge_scores report_text].freeze
+    CONTEXT_SCRIPTS = %w[categorize report_text propositions refine_propositions].freeze
+    INPUT_SCRIPTS = %w[categorize bridge_scores report_text propositions].freeze
+    PKL_INPUT_SCRIPTS = %w[refine_propositions ranked_propositions].freeze
+    LLM_SKIP_SCRIPTS = %w[report_ui ranked_propositions].freeze
 
     attr_reader :job
 
@@ -90,7 +92,7 @@ module Sensemaker
       end
 
       def append_llm_flags(command_parts)
-        return if report_ui?
+        return if llm_skip_script?
 
         model_name = runtime_config.model
         command_parts << "--model_name #{Shellwords.escape(model_name)}" if model_name.present?
@@ -130,6 +132,24 @@ module Sensemaker
         when "report_text"
           command_parts << "--input_csv #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_dir #{Shellwords.escape(work_dir)}"
+        when "propositions"
+          command_parts << "--r1_input_file #{Shellwords.escape(job.input_file)}"
+          command_parts << "--output_dir #{Shellwords.escape(work_dir)}"
+        when "refine_propositions"
+          jury_model = runtime_config.model
+          command_parts << "--input_pkl #{Shellwords.escape(job.input_file)}"
+          command_parts << "--output_pkl #{Shellwords.escape(File.join(work_dir, job.output_file_name))}"
+          command_parts << "--run_pav_selection"
+          if jury_model.present?
+            command_parts << "--simulated_jury_model_name #{Shellwords.escape(jury_model)}"
+            command_parts << "--nuanced_propositions_model_name #{Shellwords.escape(jury_model)}"
+          end
+        when "ranked_propositions"
+          output_path = File.join(work_dir, job.output_file_name)
+          command_parts << "--query all_by_topic"
+          command_parts << "--output_format csv"
+          command_parts << Shellwords.escape(job.input_file)
+          command_parts << "> #{Shellwords.escape(output_path)}"
         when "report_ui"
           command_parts << "inline"
           command_parts << "--opinions #{Shellwords.escape(report_ui_opinions_input_file.to_s)}"
@@ -239,6 +259,56 @@ module Sensemaker
         report_job.comments_analysed || comments_count
       end
 
+      def prepare_with_propositions_job
+        comments_count = prepare_with_categorization_job
+
+        propositions_job = Sensemaker::Job.create!(
+          user: job.user,
+          parent_job: job,
+          analysable_type: job.analysable_type,
+          analysable_id: job.analysable_id,
+          script: "propositions",
+          input_file: job.input_file,
+          additional_context: job.additional_context
+        )
+
+        propositions_runner = Sensemaker::JobRunner.new(propositions_job)
+        propositions_runner.run_synchronously
+
+        if propositions_job.reload.errored?
+          raise "Preparation job #{propositions_job.id} failed"
+        end
+
+        job.update!(input_file: propositions_job.world_model_pkl)
+
+        propositions_job.comments_analysed || comments_count
+      end
+
+      def prepare_with_refine_propositions_job
+        comments_count = prepare_with_propositions_job
+
+        refine_job = Sensemaker::Job.create!(
+          user: job.user,
+          parent_job: job,
+          analysable_type: job.analysable_type,
+          analysable_id: job.analysable_id,
+          script: "refine_propositions",
+          input_file: job.input_file,
+          additional_context: job.additional_context
+        )
+
+        refine_runner = Sensemaker::JobRunner.new(refine_job)
+        refine_runner.run_synchronously
+
+        if refine_job.reload.errored?
+          raise "Preparation job #{refine_job.id} failed"
+        end
+
+        job.update!(input_file: refine_job.refined_world_model_pkl)
+
+        refine_job.comments_analysed || comments_count
+      end
+
       def prepare_input_data
         conversation = job.conversation
         comments_prepared_count = 0
@@ -256,10 +326,16 @@ module Sensemaker
             ensure_work_dir!
             Sensemaker::CsvExporter.new(conversation).export_to_csv(generated_input_path)
             job.update!(input_file: generated_input_path)
-          when "bridge_scores"
+          when "bridge_scores", "propositions"
             comments_prepared_count = prepare_with_categorization_job
           when "report_text"
             comments_prepared_count = prepare_with_bridge_scores_job
+          when "refine_propositions"
+            comments_prepared_count = prepare_with_propositions_job
+          when "ranked_propositions"
+            unless ranked_propositions_export_only?
+              comments_prepared_count = prepare_with_refine_propositions_job
+            end
           when "report_ui"
             comments_prepared_count = prepare_with_report_text_job
           end
@@ -291,6 +367,12 @@ module Sensemaker
             report_ui_summary_input_file,
             description: "Report UI summary input"
           )
+
+          return true
+        end
+
+        if ranked_propositions?
+          return false unless file_exists?(job.input_file, description: "Refined world model input")
 
           return true
         end
@@ -340,7 +422,7 @@ module Sensemaker
                                            description: "Key file (apis.google_application_credentials)")
         end
 
-        if INPUT_SCRIPTS.include?(job.script) && !file_exists?(job.input_file, description: "Input file")
+        if input_file_required? && !file_exists?(job.input_file, description: "Input file")
           return false
         end
 
@@ -433,6 +515,26 @@ module Sensemaker
         command.to_s
                .gsub(/--api_key\s+\S+/, "--api_key [REDACTED]")
                .gsub(/--apiKey\s+\S+/, "--apiKey [REDACTED]")
+      end
+
+      def llm_skip_script?
+        LLM_SKIP_SCRIPTS.include?(job.script)
+      end
+
+      def ranked_propositions?
+        job.script == "ranked_propositions"
+      end
+
+      def ranked_propositions_export_only?
+        ranked_propositions? && job.read_attribute(:input_file).present?
+      end
+
+      def proposition_pipeline_script?
+        Sensemaker::Scripts::PROPOSITION_PIPELINE_SCRIPTS.include?(job.script)
+      end
+
+      def input_file_required?
+        INPUT_SCRIPTS.include?(job.script) || PKL_INPUT_SCRIPTS.include?(job.script)
       end
   end
 end

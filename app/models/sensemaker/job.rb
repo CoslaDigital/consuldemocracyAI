@@ -212,6 +212,18 @@ module Sensemaker
       File.join(work_dir, Sensemaker::Scripts.primary_output_basename("bridge_scores"))
     end
 
+    def world_model_pkl
+      return nil if work_dir.blank?
+
+      File.join(work_dir, Sensemaker::Scripts.primary_output_basename("propositions"))
+    end
+
+    def refined_world_model_pkl
+      return nil if work_dir.blank?
+
+      File.join(work_dir, Sensemaker::Scripts.primary_output_basename("refine_propositions"))
+    end
+
     def self.budget_related
       where(analysable_type: "Budget").or(
         where(analysable_type: "Budget::Group")
