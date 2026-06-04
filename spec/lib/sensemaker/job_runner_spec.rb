@@ -195,6 +195,24 @@ describe Sensemaker::JobRunner do
       expect(job.error).to include("Sensemaker requires an API key for provider 'openai'")
     end
 
+    it "returns true for Gemini provider with API key" do
+      allow(Setting).to receive(:[]).with("llm.provider").and_return("Gemini")
+      allow(llm_config).to receive(:gemini_api_key).and_return("tenant-gemini-key")
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be true
+    end
+
+    it "returns false for Gemini provider without API key" do
+      allow(Setting).to receive(:[]).with("llm.provider").and_return("Gemini")
+      allow(llm_config).to receive(:gemini_api_key).and_return(nil)
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be false
+      job.reload
+      expect(job.error).to include("Sensemaker requires a Gemini API key")
+    end
+
     it "returns false for report_ui when node CLI is missing" do
       job.script = "report_ui"
       allow(Sensemaker::Paths).to receive(:node_cli)
@@ -410,6 +428,17 @@ describe Sensemaker::JobRunner do
       expect(command).to include("--api_key openai-secret")
       expect(command).to include("--base_url https://openai-proxy.example.com/v1")
       expect(command).not_to include("--vertex_project")
+    end
+
+    it "returns the correct command for Gemini provider" do
+      allow(Setting).to receive(:[]).with("llm.provider").and_return("Gemini")
+      allow(llm_config).to receive(:gemini_api_key).and_return("gemini-secret")
+
+      command = service.build_command
+      expect(command).to include("--adapter gemini")
+      expect(command).to include("--api_key gemini-secret")
+      expect(command).not_to include("--vertex_project")
+      expect(command).not_to include("--provider")
     end
 
     it "includes bridge_scores flags" do

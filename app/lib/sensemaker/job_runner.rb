@@ -94,6 +94,7 @@ module Sensemaker
           command_parts << "--api_key #{Shellwords.escape(sensemaker_api_key)}" if sensemaker_api_key.present?
         when "gemini"
           command_parts << "--adapter gemini"
+          command_parts << "--api_key #{Shellwords.escape(sensemaker_api_key)}" if sensemaker_api_key.present?
         end
         if sensemaker_base_url.present?
           command_parts << "--base_url #{Shellwords.escape(sensemaker_base_url)}"
@@ -308,6 +309,13 @@ module Sensemaker
         if sensemaker_adapter == "openai-compatible" && sensemaker_api_key.blank?
           message = "Sensemaker requires an API key for provider '#{sensemaker_provider}'. " \
                     "Set tenant secret llm.#{sensemaker_provider}_api_key."
+          job.update!(finished_at: Time.current, error: message)
+          Rails.logger.error(message)
+          return false
+        end
+
+        if sensemaker_adapter == "gemini" && sensemaker_api_key.blank?
+          message = "Sensemaker requires a Gemini API key. Set tenant secret llm.gemini_api_key."
           job.update!(finished_at: Time.current, error: message)
           Rails.logger.error(message)
           return false
