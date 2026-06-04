@@ -285,6 +285,24 @@ describe Admin::Sensemaker::JobsController do
         job = Sensemaker::Job.last
         expect(job.script).to eq("report_ui")
       end
+
+      it "creates job with ranked_propositions when quick_action is ranked_propositions" do
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
+
+        post :create, params: {
+          sensemaker_job: {
+            analysable_type: "Debate",
+            analysable_id: debate.id,
+            additional_context: "Test"
+          },
+          quick_action: "ranked_propositions"
+        }
+
+        job = Sensemaker::Job.last
+        expect(job.script).to eq("ranked_propositions")
+      end
     end
 
     context "when script is missing and no quick_action" do

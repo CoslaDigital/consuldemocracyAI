@@ -39,6 +39,18 @@ FactoryBot.define do
       script { "report_ui" }
     end
 
+    trait :propositions do
+      script { "propositions" }
+    end
+
+    trait :refine_propositions do
+      script { "refine_propositions" }
+    end
+
+    trait :ranked_propositions do
+      script { "ranked_propositions" }
+    end
+
     trait :publishable do
       script { "report_ui" }
       finished_at { Time.current }

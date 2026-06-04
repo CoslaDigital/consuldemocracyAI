@@ -485,6 +485,54 @@ describe Sensemaker::JobRunner do
       expect(command).not_to include("--adapter")
       expect(command).not_to include("--model_name")
     end
+
+    it "builds ranked_propositions command with redirect and no LLM flags" do
+      job.script = "ranked_propositions"
+      pkl_path = "/tmp/refined_world_model.pkl"
+      job[:input_file] = pkl_path
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-world-model").and_return("/tmp/sensemaking-world-model")
+
+      command = service.build_command
+
+      expect(command).to include("/tmp/sensemaking-world-model")
+      expect(command).to include("--query all_by_topic")
+      expect(command).to include("--output_format csv")
+      expect(command).to include(Shellwords.escape(pkl_path))
+      csv_output = "#{data_folder}/job-#{job.id}/final_propositions_by_topic.csv"
+      expect(command).to include("> #{Shellwords.escape(csv_output)}")
+      expect(command).not_to include("--adapter")
+      expect(command).not_to include("--model_name")
+    end
+
+    it_behaves_like "python runner command", "propositions", "sensemaking-propositions"
+
+    it "includes propositions flags" do
+      job.script = "propositions"
+      job[:input_file] = "/tmp/categorized.csv"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-propositions").and_return("/tmp/sensemaking-propositions")
+
+      command = service.build_command
+
+      expect(command).to include("--r1_input_file")
+      expect(command).to include("--output_dir")
+      expect(command).to include(Shellwords.escape("/tmp/categorized.csv"))
+    end
+
+    it "includes refine_propositions flags" do
+      job.script = "refine_propositions"
+      job[:input_file] = "/tmp/world_model.pkl"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-refine-propositions").and_return("/tmp/sensemaking-refine-propositions")
+
+      command = service.build_command
+
+      expect(command).to include("--input_pkl")
+      expect(command).to include("--output_pkl")
+      expect(command).to include("--run_pav_selection")
+      expect(command).to include("--simulated_jury_model_name gemini-2.5-flash-lite")
+    end
   end
 
   describe "#execute_job_workflow" do
@@ -674,6 +722,59 @@ describe Sensemaker::JobRunner do
 
         expect(result).to eq(0)
         expect(mock_exporter).not_to have_received(:export_to_csv)
+      end
+    end
+
+    context "when script is propositions with blank input_file" do
+      let(:job) { create(:sensemaker_job, :propositions, user: user) }
+
+      it "calls prepare_with_categorization_job" do
+        allow(service).to receive(:prepare_with_categorization_job).and_return(9)
+
+        result = service.send(:prepare_input_data)
+
+        expect(service).to have_received(:prepare_with_categorization_job)
+        expect(result).to eq(9)
+      end
+    end
+
+    context "when script is refine_propositions with blank input_file" do
+      let(:job) { create(:sensemaker_job, :refine_propositions, user: user) }
+
+      it "calls prepare_with_propositions_job" do
+        allow(service).to receive(:prepare_with_propositions_job).and_return(11)
+
+        result = service.send(:prepare_input_data)
+
+        expect(service).to have_received(:prepare_with_propositions_job)
+        expect(result).to eq(11)
+      end
+    end
+
+    context "when script is ranked_propositions with blank input_file" do
+      let(:job) { create(:sensemaker_job, :ranked_propositions, user: user) }
+
+      it "calls prepare_with_refine_propositions_job" do
+        allow(service).to receive(:prepare_with_refine_propositions_job).and_return(12)
+
+        result = service.send(:prepare_input_data)
+
+        expect(service).to have_received(:prepare_with_refine_propositions_job)
+        expect(result).to eq(12)
+      end
+    end
+
+    context "when script is ranked_propositions with input_file preset" do
+      let(:job) do
+        create(:sensemaker_job, :ranked_propositions, user: user, input_file: "/tmp/refined.pkl")
+      end
+
+      it "skips preparation chain" do
+        expect(service).not_to receive(:prepare_with_refine_propositions_job)
+
+        result = service.send(:prepare_input_data)
+
+        expect(result).to eq(0)
       end
     end
   end

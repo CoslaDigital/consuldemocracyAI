@@ -262,7 +262,10 @@ describe Sensemaker::Job do
         "bridge_scores" => "bridging_scores.csv",
         "report_text" => "report_data.json",
         "health_check" => "health-check.txt",
-        "report_ui" => "report.html"
+        "report_ui" => "report.html",
+        "propositions" => "world_model.pkl",
+        "refine_propositions" => "refined_world_model.pkl",
+        "ranked_propositions" => "final_propositions_by_topic.csv"
       }.each do |script, basename|
         it "returns the primary artefact basename for #{script}" do
           job.script = script
@@ -517,6 +520,29 @@ describe Sensemaker::Job do
           allow(File).to receive(:exist?).with(optional).and_return(true)
           expect(job.has_outputs?).to be false
         end
+      end
+
+      context "when script is ranked_propositions" do
+        before { job.script = "ranked_propositions" }
+
+        it "returns true when final_propositions_by_topic.csv exists" do
+          output_path = "#{data_folder}/job-#{job.id}/final_propositions_by_topic.csv"
+          allow(File).to receive(:exist?).with(output_path).and_return(true)
+          expect(job.has_outputs?).to be true
+        end
+
+        it "returns false when the CSV does not exist" do
+          expect(job.has_outputs?).to be false
+        end
+      end
+    end
+
+    describe "#world_model_pkl and #refined_world_model_pkl" do
+      include_context "sensemaker paths stubbed"
+
+      it "returns paths under work_dir" do
+        expect(job.world_model_pkl).to eq("#{data_folder}/job-#{job.id}/world_model.pkl")
+        expect(job.refined_world_model_pkl).to eq("#{data_folder}/job-#{job.id}/refined_world_model.pkl")
       end
     end
 
