@@ -81,6 +81,9 @@
                        type: "submit",
                        formaction: preview_admin_sensemaker_jobs_path(format: :csv),
                        class: "button", data: { temp_disable: true } %>
+          <%= button_tag t("admin.sensemaker.new.generate_ranked_propositions"),
+                         type: "submit", name: "quick_action", value: "ranked_propositions",
+                         class: "button", data: { temp_disable: true } %>
           <%= button_tag t("admin.sensemaker.new.generate_report"),
                          type: "submit", name: "quick_action", value: "report",
                          class: "button success", data: { temp_disable: true } %>

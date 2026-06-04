@@ -1802,7 +1802,8 @@ en:
         select_target: "Select a target from the results"
         results: "results"
         analysing: "Analysing"
-        review_context: "Review the additional context, then use Generate report or select a script in advanced options."
+        review_context: "Review the additional context, then click a Generate button, or, select a script in advanced options."
+        generate_ranked_propositions: "Generate ranked propositions"
         additional_context_label: "Additional context"
         additional_context_hint: "Optional text that helps guide the analysis. For example, briefly describe what the conversation is about so the AI has useful background. The target's title and description are already included."
         generate_report: "Generate report"
@@ -1870,7 +1871,7 @@ en:
       notice:
         cancelled_jobs: "All sensemaker jobs have been cancelled."
         script_info: "The script has been queued successfully."
-        script_required: "Please select a script from the expert options, or use Generate Report."
+        script_required: "Please select a script from the expert options, or use Generate report / Generate ranked propositions."
         output_file_not_found: "Output file not found"
         deleted_job: "Analysis job deleted successfully"
         cannot_publish: "The analysis cannot be published because it is not finished or has errors or does not have an output file."
@@ -1890,6 +1891,15 @@ en:
         report_text:
           title: "Generate report data"
           description: "Produce structured report JSON with topic summaries"
+        propositions:
+          title: "Generate propositions"
+          description: "Generate candidate propositions from categorised comments (requires categorise first, or runs it automatically)"
+        refine_propositions:
+          title: "Refine propositions (simulated jury)"
+          description: "Rank and refine propositions with a simulated jury (long-running; requires proposition generation first)"
+        ranked_propositions:
+          title: "Export ranked propositions (CSV)"
+          description: "Full pipeline: categorise, generate propositions, jury refinement, then export ranked propositions by topic. Very long-running and LLM-intensive."
         report_ui:
           title: "Generate interactive report"
           description: "Run the full pipeline and build an HTML report for publishing"

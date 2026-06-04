@@ -181,6 +181,8 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
 
     if params[:quick_action] == "report"
       valid_params[:script] = "report_ui"
+    elsif params[:quick_action] == "ranked_propositions"
+      valid_params[:script] = "ranked_propositions"
     elsif valid_params[:script].blank?
       return redirect_to(
         new_admin_sensemaker_job_path(

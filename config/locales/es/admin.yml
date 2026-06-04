@@ -1850,7 +1850,8 @@ es:
         select_target: "Selecciona un objetivo de los resultados"
         results: "resultados"
         analysing: "Analizando"
-        review_context: "Revisa el contexto adicional, luego usa Generar informe o selecciona un script en opciones avanzadas."
+        review_context: "Revisa el contexto adicional, luego pulsa un botón Generar o selecciona un script en opciones avanzadas."
+        generate_ranked_propositions: "Generar proposiciones clasificadas"
         additional_context_label: "Contexto adicional"
         additional_context_hint: "Texto opcional que ayuda a orientar el análisis. Por ejemplo, describe brevemente de qué trata la conversación para que la IA tenga contexto. El título y la descripción del objetivo ya se incluyen."
         generate_report: "Generar informe"
@@ -1918,7 +1919,7 @@ es:
       notice:
         cancelled_jobs: "Todos los trabajos de sensemaker han sido cancelados."
         script_info: "El script se ha encolado correctamente."
-        script_required: "Selecciona un script en las opciones avanzadas o usa Generar informe."
+        script_required: "Selecciona un script en las opciones avanzadas o usa Generar informe / Generar proposiciones clasificadas."
         output_file_not_found: "Archivo de salida no encontrado"
         deleted_job: "Trabajo de análisis eliminado correctamente"
         cannot_publish: "El análisis no se puede publicar porque no está terminado o tiene errores o no tiene un archivo de salida."
@@ -1938,6 +1939,15 @@ es:
         report_text:
           title: "Generar datos del informe"
           description: "Producir JSON estructurado del informe con resúmenes por tema"
+        propositions:
+          title: "Generar proposiciones"
+          description: "Generar proposiciones candidatas a partir de comentarios categorizados (requiere categorizar antes, o se ejecuta automáticamente)"
+        refine_propositions:
+          title: "Refinar proposiciones (jurado simulado)"
+          description: "Clasificar y refinar proposiciones con un jurado simulado (ejecución larga; requiere la generación de proposiciones previa)"
+        ranked_propositions:
+          title: "Exportar proposiciones clasificadas (CSV)"
+          description: "Pipeline completo: categorizar, generar proposiciones, refinamiento con jurado y exportar proposiciones clasificadas por tema. Muy largo y con mucho uso de LLM."
         report_ui:
           title: "Generar informe interactivo"
           description: "Ejecutar el pipeline completo y generar un informe HTML para publicar"
