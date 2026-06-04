@@ -136,14 +136,12 @@ module Sensemaker
           command_parts << "--r1_input_file #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_dir #{Shellwords.escape(work_dir)}"
         when "refine_propositions"
-          jury_model = runtime_config.model
           command_parts << "--input_pkl #{Shellwords.escape(job.input_file)}"
           command_parts << "--output_pkl #{Shellwords.escape(File.join(work_dir, job.output_file_name))}"
           command_parts << "--run_pav_selection"
-          if jury_model.present?
-            command_parts << "--simulated_jury_model_name #{Shellwords.escape(jury_model)}"
-            command_parts << "--nuanced_propositions_model_name #{Shellwords.escape(jury_model)}"
-          end
+          # TODO: consider passing different models
+          # command_parts << "--simulated_jury_model_name #{Shellwords.escape(jury_model)}"
+          # command_parts << "--nuanced_propositions_model_name #{Shellwords.escape(jury_model)}"
         when "ranked_propositions"
           output_path = File.join(work_dir, job.output_file_name)
           command_parts << "--query all_by_topic"

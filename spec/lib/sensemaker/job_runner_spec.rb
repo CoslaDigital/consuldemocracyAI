@@ -520,7 +520,7 @@ describe Sensemaker::JobRunner do
       expect(command).to include(Shellwords.escape("/tmp/categorized.csv"))
     end
 
-    it "includes refine_propositions flags" do
+    it "includes refine_propositions flags with model_name only" do
       job.script = "refine_propositions"
       job[:input_file] = "/tmp/world_model.pkl"
       allow(Sensemaker::Paths).to receive(:sensemaking_cli)
@@ -528,10 +528,11 @@ describe Sensemaker::JobRunner do
 
       command = service.build_command
 
+      expect(command).to include("--adapter vertex")
+      expect(command).to include("--model_name gemini-2.5-flash-lite")
       expect(command).to include("--input_pkl")
       expect(command).to include("--output_pkl")
       expect(command).to include("--run_pav_selection")
-      expect(command).to include("--simulated_jury_model_name gemini-2.5-flash-lite")
     end
   end
 
