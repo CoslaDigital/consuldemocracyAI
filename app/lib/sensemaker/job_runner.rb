@@ -140,7 +140,7 @@ module Sensemaker
 
         comments_prepared_count = prepare_input_data
         return unless check_dependencies?
-        return if execute_script.blank?
+        return if execute_script.nil?
         return unless normalize_report_ui_output!
 
         attribs = { finished_at: Time.current }

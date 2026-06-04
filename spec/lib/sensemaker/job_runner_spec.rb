@@ -57,7 +57,7 @@ describe Sensemaker::JobRunner do
       service.run
     end
 
-    it "stops if execute_script returns false" do
+    it "stops if execute_script returns nil" do
       expect(service).to receive(:execute_script).and_return(nil)
 
       service.run
@@ -261,7 +261,7 @@ describe Sensemaker::JobRunner do
       allow(FileUtils).to receive(:mkdir_p)
     end
 
-    it "returns value when the script executes successfully" do
+    it "returns stdout when the script executes successfully" do
       timeout = Sensemaker::JobRunner::TIMEOUT
       expected_command = %r{cd .*job-#{job.id}.* && timeout #{timeout} .*sensemaking-categorize}
       expect(service).to receive(:`).with(expected_command).and_return("Success output")
@@ -270,7 +270,22 @@ describe Sensemaker::JobRunner do
 
       result = service.send(:execute_script)
 
-      expect(result).to be_present
+      expect(result).to eq("Success output")
+    end
+
+    it "returns empty string when ranked_propositions redirects stdout to a file" do
+      job.update!(script: "ranked_propositions")
+      job[:input_file] = "/tmp/refined_world_model.pkl"
+      allow(Sensemaker::Paths).to receive(:sensemaking_cli)
+        .with("sensemaking-world-model").and_return("/tmp/sensemaking-world-model")
+
+      timeout = Sensemaker::JobRunner::TIMEOUT
+      expect(service).to receive(:`).with(%r{cd .*job-#{job.id}.* && timeout #{timeout} }).and_return("")
+      allow(service).to receive(:process_exit_status).and_return(0)
+
+      result = service.send(:execute_script)
+
+      expect(result).to eq("")
     end
 
     it "returns nil and updates the job when the script fails" do
@@ -535,6 +550,23 @@ describe Sensemaker::JobRunner do
       it "normalizes inline output before marking job successful" do
         allow(job).to receive(:has_outputs?).and_return(true)
         expect(service).to receive(:normalize_report_ui_output!).and_return(true)
+
+        service.send(:execute_job_workflow)
+
+        job.reload
+        expect(job.finished_at).to be_present
+        expect(job.error).to be(nil)
+      end
+    end
+
+    context "when script is ranked_propositions and CLI stdout is empty (shell redirect)" do
+      before do
+        job.update!(script: "ranked_propositions")
+        allow(service).to receive(:execute_script).and_return("")
+      end
+
+      it "sets finished_at when output file exists" do
+        allow(job).to receive(:has_outputs?).and_return(true)
 
         service.send(:execute_job_workflow)
 
