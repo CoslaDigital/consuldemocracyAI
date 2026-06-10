@@ -123,6 +123,9 @@ If the health check fails, inspect the job's error message on the job detail pag
    ![Sensemaker jobs list in the admin area](../../img/sensemaker/admin-jobs-index-en.png)
 
 2. Click **New Run** and search for a target resource (debate, proposal, poll, legislation item, budget, etc.).
+
+   ![New Sensemaker analysis with a target resource selected](../../img/sensemaker/admin-new-run-en.png)
+
 3. Review the **additional context** field (the target's title and description are pre-filled where available) and add optional guidance for the analysis.
 4. Choose how to run the analysis:
    - **Generate summary**: runs the summarisation script

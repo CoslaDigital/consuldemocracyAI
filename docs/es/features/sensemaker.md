@@ -123,6 +123,9 @@ Si la verificación de salud falla, revisa el mensaje de error del trabajo en la
    ![Lista de trabajos Sensemaker en el área de administración](../../img/sensemaker/admin-jobs-index-es.png)
 
 2. Haz clic en **Nueva ejecución** y busca un recurso objetivo (debate, propuesta, votación, elemento legislativo, presupuesto, etc.).
+
+   ![Nuevo análisis Sensemaker con un recurso objetivo seleccionado](../../img/sensemaker/admin-new-run-es.png)
+
 3. Revisa el campo de **contexto adicional** (el título y la descripción del objetivo se rellenan previamente cuando están disponibles) y añade orientación opcional para el análisis.
 4. Elige cómo ejecutar el análisis:
    - **Generar resumen**: ejecuta el script de resumen
