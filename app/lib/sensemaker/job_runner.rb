@@ -59,7 +59,7 @@ module Sensemaker
     end
 
     def self.enabled?
-      Setting["feature.sensemaker"].present?
+      Sensemaker.enabled?
     end
 
     def build_command
