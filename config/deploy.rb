@@ -65,8 +65,6 @@ set :delayed_job_monitor, true
 
 set :whenever_roles, -> { :app }
 
-set :setup_sensemaker, ENV["SETUP_SENSEMAKER"] == "true"
-
 namespace :deploy do
   after "rvm1:hook", "map_node_bins"
 
@@ -76,8 +74,6 @@ namespace :deploy do
   after "deploy:migrate", "add_new_settings"
 
   after :publishing, "setup_puma"
-
-  after :publishing, "setup_sensemaker"
 
   after :finished, "refresh_sitemap"
 
@@ -182,17 +178,6 @@ task :setup_puma do
 
   after "setup_puma", "puma:install"
   after "setup_puma", "puma:enable"
-end
-
-desc "Setup Sensemaker"
-task :setup_sensemaker do
-  on roles(:app) do
-    within release_path do
-      with rails_env: fetch(:rails_env) do
-        execute :rake, "sensemaker:setup" if fetch(:setup_sensemaker, false)
-      end
-    end
-  end
 end
 
 task :setup_delayed_job_environment do
