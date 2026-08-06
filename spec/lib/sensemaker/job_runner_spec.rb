@@ -72,12 +72,9 @@ describe Sensemaker::JobRunner do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
     before do
-      allow(Llm::Config).to receive(:context).and_return(llm_context)
-      allow(Setting).to receive(:[]).and_call_original
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
       allow(service.backend).to receive(:check_runtime_dependencies?).and_return(true)
       allow(File).to receive(:exist?).and_return(true)
+      allow(service.send(:runtime_config)).to receive(:validation_error).and_return(nil)
     end
 
     it "returns true when all dependencies are available" do
@@ -85,66 +82,41 @@ describe Sensemaker::JobRunner do
       expect(result).to be true
     end
 
-    {
-      "sensemaker_data_folder is not configured" => [
-        -> { allow(Tenant.current_secrets).to receive(:sensemaker_data_folder).and_return(nil) },
-        "Sensemaker data folder not configured"
-      ],
-      "Vertex AI project_id is not configured" => [
-        -> { allow(llm_config).to receive(:vertexai_project_id).and_return(nil) },
-        "Vertex AI is not configured"
-      ],
-      "LLM provider is unsupported" => [
-        -> { allow(Setting).to receive(:[]).with("llm.provider").and_return("Unsupported") },
-        "Sensemaker LLM provider is not supported"
-      ],
-      "LLM model is not selected" => [
-        -> { allow(Setting).to receive(:[]).with("llm.model").and_return(nil) },
-        "Sensemaker requires an LLM model to be selected"
-      ],
-      "apis.google_application_credentials is set but key file does not exist" => [
-        -> {
-          allow(Rails.application.secrets).to receive(:google_application_credentials)
-          .and_return("/nonexistent/key.json")
-          allow(File).to receive(:exist?).with("/nonexistent/key.json").and_return(false)
-        },
-        "Key file (apis.google_application_credentials) not found"
-      ],
-      "runtime dependencies check fails" => [
-        -> {
-          allow(service.backend).to receive(:check_runtime_dependencies?).and_return(false)
-        },
-        nil
-      ]
-    }.each do |description, (setup, error_substring)|
-      it "returns false when #{description}" do
-        instance_exec(&setup)
-        result = service.send(:check_dependencies?)
-        expect(result).to be false
-        next if error_substring.nil?
-
-        job.reload
-        expect(job.finished_at).to be_present
-        expect(job.error).to include(error_substring)
-      end
-    end
-
-    it "returns true for OpenAI-compatible provider with API key" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
-      allow(llm_config).to receive(:openai_api_key).and_return("tenant-openai-key")
-
-      result = service.send(:check_dependencies?)
-      expect(result).to be true
-    end
-
-    it "returns false for OpenAI-compatible provider without API key" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
-      allow(llm_config).to receive(:openai_api_key).and_return(nil)
+    it "returns false when sensemaker_data_folder is not configured" do
+      allow(Tenant.current_secrets).to receive(:sensemaker_data_folder).and_return(nil)
 
       result = service.send(:check_dependencies?)
       expect(result).to be false
       job.reload
-      expect(job.error).to include("Sensemaker requires an API key for provider 'openai'")
+      expect(job.error).to include("Sensemaker data folder not configured")
+    end
+
+    it "returns false when runtime_config has a validation error" do
+      allow_any_instance_of(Sensemaker::RuntimeConfig)
+        .to receive(:validation_error).and_return("LLM misconfigured")
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be false
+      job.reload
+      expect(job.error).to eq("LLM misconfigured")
+    end
+
+    it "returns false when google_application_credentials key file does not exist" do
+      allow(Rails.application.secrets).to receive(:google_application_credentials)
+        .and_return("/nonexistent/key.json")
+      allow(File).to receive(:exist?).with("/nonexistent/key.json").and_return(false)
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be false
+      job.reload
+      expect(job.error).to include("Key file (apis.google_application_credentials) not found")
+    end
+
+    it "returns false when runtime dependencies check fails" do
+      allow(service.backend).to receive(:check_runtime_dependencies?).and_return(false)
+
+      result = service.send(:check_dependencies?)
+      expect(result).to be false
     end
   end
 
@@ -154,8 +126,8 @@ describe Sensemaker::JobRunner do
     before do
       allow(File).to receive(:exist?).and_return(true)
       allow(Setting).to receive(:[]).and_call_original
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
     end
 
     it "returns value when the script executes successfully" do
@@ -190,8 +162,8 @@ describe Sensemaker::JobRunner do
     it "redacts api keys in stored command errors" do
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(llm_config).to receive(:openai_api_key).and_return("super-secret-key")
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gpt-4o")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("OpenAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gpt-4o")
 
       timeout = Sensemaker::JobRunner::TIMEOUT
       expected_command = %r{cd .* && timeout #{timeout} .*--apiKey super-secret-key.*}
