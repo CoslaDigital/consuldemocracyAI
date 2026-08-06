@@ -69,8 +69,8 @@ describe Llm::Config do
     end
 
     it "returns nil for unsupported providers" do
-      expect(Llm::Config.sensemaker_adapter_for("Anthropic")).to be_nil
-      expect(Llm::Config.sensemaker_adapter_for("Gemini")).to be_nil
+      expect(Llm::Config.sensemaker_adapter_for("Anthropic")).to be(nil)
+      expect(Llm::Config.sensemaker_adapter_for("Gemini")).to be(nil)
     end
   end
 
