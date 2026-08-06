@@ -8,22 +8,15 @@ module Sensemaker
     end
 
     def provider
-      setting["llm.provider"].to_s.downcase.strip
+      setting["llm.sensemaker_provider"].to_s.downcase.strip
     end
 
     def model
-      setting["llm.model"].to_s.presence
+      setting["llm.sensemaker_model"].to_s.presence
     end
 
     def adapter
-      case provider
-      when /vertex/
-        "vertex"
-      when /ollama/
-        "ollama"
-      when /openai/, /openrouter/, /mistral/
-        "openai-compatible"
-      end
+      Llm::Config.sensemaker_adapter_for(provider)
     end
 
     def compat_provider
@@ -75,6 +68,30 @@ module Sensemaker
 
     def supported?
       adapter.present?
+    end
+
+    def validation_error
+      if adapter.blank?
+        return "Sensemaker LLM provider is not supported. Current provider: " \
+               "#{provider.presence || "(not set)"}."
+      end
+
+      if adapter == "vertex" && vertex_project_id.blank?
+        return "Vertex AI is not configured. Set tenant secrets llm.vertexai_project_id " \
+               "(and optionally vertexai_location)."
+      end
+
+      if model.blank?
+        return "Sensemaker requires an LLM model to be selected. " \
+               "Set Sensemaker provider and model in Admin → Settings → LLM."
+      end
+
+      if adapter == "openai-compatible" && api_key.blank?
+        return "Sensemaker requires an API key for provider '#{compat_provider}'. " \
+               "Set tenant secret llm.#{compat_provider}_api_key."
+      end
+
+      nil
     end
 
     private
