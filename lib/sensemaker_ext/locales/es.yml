@@ -1,0 +1,19 @@
+es:
+  admin:
+    sensemaker:
+      scripts:
+        health_check:
+          title: "(Python) Verificacion de salud"
+          description: "Verifica conectividad y credenciales del backend de Sensemaker."
+        categorize:
+          title: "(Python) Categorizar comentarios"
+          description: "Clasifica comentarios por categorias para analisis posteriores."
+        bridge_scores:
+          title: "(Python) Puntuaciones puente"
+          description: "Calcula puntuaciones puente a partir de comentarios categorizados."
+        report_text:
+          title: "(Python) Datos de resumen del informe"
+          description: "Genera datos de resumen estructurados para renderizar el informe."
+        report_ui:
+          title: "(Python) Interfaz del informe"
+          description: "Renderiza la pagina final del informe de Sensemaker."
