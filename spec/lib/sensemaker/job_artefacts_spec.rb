@@ -362,6 +362,8 @@ describe Sensemaker::JobArtefacts do
   end
 
   describe "#existing_input_artefact_paths" do
+    include_context "sensemaker paths stubbed"
+
     before do
       allow(File).to receive(:exist?).and_return(false)
     end
@@ -389,6 +391,75 @@ describe Sensemaker::JobArtefacts do
       allow(File).to receive(:exist?).with(missing_3).and_return(false)
 
       expect(artefacts.existing_input_artefact_paths).to eq([existing])
+    end
+
+    context "with python report_ui prep tree" do
+      before { SensemakerExt::Loader.install! }
+
+      it "lists only step inputs: summary json and bridging scores" do
+        allow(File).to receive(:exist?).and_call_original
+        allow(Sensemaker::Paths).to receive(:job_directory) do |j|
+          "#{data_folder}/job-#{j.id}"
+        end
+
+        report_text_dir = "#{data_folder}/job-report-text"
+        bridge_dir = "#{data_folder}/job-bridge"
+        cat_dir = "#{data_folder}/job-cat"
+        summary_base = File.join(report_text_dir, "report_data")
+        summary_json = "#{summary_base}.json"
+        bridging_csv = File.join(bridge_dir, "bridging_scores.csv")
+        categorized = File.join(cat_dir, "categorized_with_other.csv")
+
+        parent = create(:sensemaker_job,
+                        analysable_type: "Debate",
+                        analysable_id: debate.id,
+                        script: "report_ui",
+                        user: user,
+                        started_at: Time.current,
+                        input_file: summary_base)
+        report_text = create(:sensemaker_job,
+                             parent_job: parent,
+                             analysable_type: "Debate",
+                             analysable_id: debate.id,
+                             script: "report_text",
+                             user: user,
+                             started_at: Time.current)
+        bridge = create(:sensemaker_job,
+                        parent_job: report_text,
+                        analysable_type: "Debate",
+                        analysable_id: debate.id,
+                        script: "bridge_scores",
+                        user: user,
+                        started_at: Time.current)
+        categorize = create(:sensemaker_job,
+                            parent_job: bridge,
+                            analysable_type: "Debate",
+                            analysable_id: debate.id,
+                            script: "categorize",
+                            user: user,
+                            started_at: Time.current)
+
+        allow(Sensemaker::Paths).to receive(:job_directory).with(report_text).and_return(report_text_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(bridge).and_return(bridge_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(categorize).and_return(cat_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(parent).and_return(
+          "#{data_folder}/job-#{parent.id}"
+        )
+
+        FileUtils.mkdir_p([report_text_dir, bridge_dir, cat_dir])
+        File.write(summary_json, "{}")
+        File.write(File.join(report_text_dir, "report_data_with_opinions.json"), "{}")
+        File.write(bridging_csv, "a,b\n")
+        File.write(categorized, "a,b\n")
+        File.write(File.join(cat_dir, "categorized_with_other_filtered.csv"), "a,b\n")
+        File.write(File.join(cat_dir, "categorized_without_other.csv"), "a,b\n")
+        File.write(File.join(cat_dir, "categorized_without_other_filtered.csv"), "a,b\n")
+        File.write(File.join(cat_dir, "categorized_with_other_topic_tree.txt"), "tree")
+
+        paths = Sensemaker::JobArtefacts.new(parent).existing_input_artefact_paths
+        expect(paths).to contain_exactly(summary_json, bridging_csv)
+        expect(paths).not_to include(categorized)
+      end
     end
   end
 
@@ -448,6 +519,102 @@ describe Sensemaker::JobArtefacts do
       allow(FileUtils).to receive(:rm_rf).and_raise(StandardError.new("File system error"))
 
       expect(artefacts.cleanup).to be(nil)
+    end
+  end
+
+  describe "preparation helpers" do
+    include_context "sensemaker paths stubbed"
+
+    let(:report_job) do
+      create(:sensemaker_job,
+             analysable_type: "Debate",
+             analysable_id: debate.id,
+             script: "sensemaking-report-ui",
+             user: user,
+             started_at: Time.current)
+    end
+    let(:report_artefacts) { Sensemaker::JobArtefacts.new(report_job) }
+
+    def write_job_output(prep_job, relative_name, content = "x")
+      dir = Sensemaker::Paths.job_directory(prep_job)
+      FileUtils.mkdir_p(dir)
+      path = File.join(dir, relative_name)
+      File.write(path, content)
+      path
+    end
+
+    context "with no preparation jobs" do
+      it "returns no jobs or outputs" do
+        expect(report_artefacts.preparation_jobs).to eq([])
+        expect(report_artefacts.preparation_output_paths_by_script).to eq({})
+        expect(report_artefacts.preparation_outputs_for("categorization_runner.ts")).to eq([])
+        expect(report_artefacts.preparation_output_for("categorization_runner.ts")).to be(nil)
+      end
+    end
+
+    context "with a nested prep tree and files on disk" do
+      let!(:summary_job) do
+        create(:sensemaker_job,
+               parent_job: report_job,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               script: "runner.ts",
+               user: user,
+               started_at: Time.current)
+      end
+      let!(:bridge_job) do
+        create(:sensemaker_job,
+               parent_job: summary_job,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               script: "categorization_runner.ts",
+               user: user,
+               started_at: Time.current)
+      end
+      let!(:summary_json) { write_job_output(summary_job, "output-summary.json", "{}") }
+      let!(:summary_html) { write_job_output(summary_job, "output-summary.html", "<html>") }
+      let!(:bridge_csv) do
+        write_job_output(bridge_job, "categorization-output.csv", "a,b\n")
+      end
+
+      before do
+        allow(Sensemaker::Paths).to receive(:sensemaker_data_folder).and_return(data_folder)
+        allow(Sensemaker::Paths).to receive(:job_directory) do |j|
+          "#{data_folder}/job-#{j.id}"
+        end
+      end
+
+      it "lists preparation jobs in BFS order" do
+        expect(report_artefacts.preparation_jobs).to eq([summary_job, bridge_job])
+      end
+
+      it "maps scripts to existing output paths" do
+        by_script = report_artefacts.preparation_output_paths_by_script
+        expect(by_script["runner.ts"]).to include(summary_json, summary_html)
+        expect(by_script["categorization_runner.ts"]).to eq([bridge_csv])
+      end
+
+      it "returns all outputs for a multi-output script" do
+        expect(report_artefacts.preparation_outputs_for("runner.ts")).to include(
+          summary_json, summary_html
+        )
+      end
+
+      it "returns the first existing output for a script" do
+        expect(report_artefacts.preparation_output_for("categorization_runner.ts")).to eq(bridge_csv)
+      end
+
+      it "omits scripts whose output files are missing" do
+        FileUtils.rm_f(bridge_csv)
+        expect(report_artefacts.preparation_outputs_for("categorization_runner.ts")).to eq([])
+        expect(report_artefacts.preparation_output_for("categorization_runner.ts")).to be(nil)
+      end
+
+      it "exposes preparation outputs via existing_preparation_output_artefact_paths" do
+        expect(report_artefacts.existing_preparation_output_artefact_paths).to include(
+          summary_json, summary_html, bridge_csv
+        )
+      end
     end
   end
 end
