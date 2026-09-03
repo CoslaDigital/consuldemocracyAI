@@ -179,8 +179,10 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
   def create
     valid_params = sensemaker_job_params.to_h
 
-    if params[:quick_action].in?(%w[summary report])
-      valid_params[:script] = params[:quick_action] == "summary" ? "runner.ts" : "sensemaking-report-ui"
+    quick_action = params[:quick_action].to_s
+
+    if Sensemaker::ScriptRegistry.known?(quick_action)
+      valid_params[:script] = quick_action
     elsif valid_params[:script].blank?
       return redirect_to(
         new_admin_sensemaker_job_path(

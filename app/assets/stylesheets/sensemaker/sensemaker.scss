@@ -29,6 +29,8 @@
 }
 
 .admin .sensemaker {
+  margin-bottom: 6rem;
+
   .additional-context {
     border: 1px solid $border;
     height: fit-content;
@@ -51,6 +53,42 @@
       cursor: not-allowed;
       opacity: 0.7;
       pointer-events: none;
+    }
+  }
+
+  .quick-action {
+    .quick-action-toggle {
+      @include has-fa-icon(chevron-down, solid, after);
+
+      &::after {
+        margin-left: 0.5rem;
+        max-height: 0.9rem;
+        position: relative;
+        top: 1px;
+      }
+    }
+
+    .dropdown-pane {
+      border: 0;
+      padding: 0;
+      width: auto;
+      box-shadow: 1px 1px 3px rgb(188, 188, 188);
+      margin-top: 2px;
+      padding: 0.1rem;
+      border-radius: $button-radius;
+      background-color: #3adb76;
+
+      .button {
+        display: block;
+        margin: 0;
+        white-space: nowrap;
+        width: 100%;
+        text-align: left;
+
+        + .button {
+          border-top: 1px solid rgba($white, 0.3);
+        }
+      }
     }
   }
 

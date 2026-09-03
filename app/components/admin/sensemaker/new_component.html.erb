@@ -75,17 +75,41 @@
       <div class="flex-between">
         <%= link_to t("admin.sensemaker.new.cancel"), admin_sensemaker_jobs_path, class: "" %>
 
-        <div>
+        <div class="flex-row">
           <%= f.submit t("admin.sensemaker.new.download_input_csv"),
                        type: "submit",
                        formaction: preview_admin_sensemaker_jobs_path(format: :csv),
                        class: "button", data: { temp_disable: true } %>
-          <%= button_tag t("admin.sensemaker.new.generate_summary"),
-                         type: "submit", name: "quick_action", value: "summary",
-                         class: "button success", data: { temp_disable: true } %>
-          <%= button_tag t("admin.sensemaker.new.generate_report"),
-                         type: "submit", name: "quick_action", value: "report",
-                         class: "button success", data: { temp_disable: true } %>
+
+          <% QUICK_ACTIONS.each do |logical_name, config| %>
+            <% label = t(config[:label_key]) %>
+            <% scripts = quick_action_scripts(logical_name) %>
+            <% dropdown_id = "sensemaker_#{logical_name}_scripts" %>
+
+            <% if scripts.many? %>
+              <div class="quick-action">
+                <button type="button" class="button success quick-action-toggle"
+                        data-toggle="<%= dropdown_id %>"
+                        aria-controls="<%= dropdown_id %>"
+                        aria-haspopup="true">
+                  <%= label %>
+                </button>
+
+                <div class="dropdown-pane" id="<%= dropdown_id %>" data-dropdown
+                     data-position="bottom" data-alignment="right" data-auto-focus="true">
+                  <% scripts.each do |script| %>
+                    <%= button_tag script_option_label(script),
+                                   type: "submit", name: "quick_action", value: script,
+                                   class: "button success", data: { temp_disable: true } %>
+                  <% end %>
+                </div>
+              </div>
+            <% else %>
+              <%= button_tag label,
+                             type: "submit", name: "quick_action", value: scripts.first,
+                             class: "button success", data: { temp_disable: true } %>
+            <% end %>
+          <% end %>
         </div>
       </div>
 
