@@ -3,17 +3,17 @@ es:
     sensemaker:
       scripts:
         health_check:
-          title: "(Python) Verificacion de salud"
-          description: "Verifica conectividad y credenciales del backend de Sensemaker."
+          title: "(Sensemaker v2) Verificacion de salud"
+          description: "Verificar que Sensemaker esta funcionando"
         categorize:
-          title: "(Python) Categorizar comentarios"
-          description: "Clasifica comentarios por categorias para analisis posteriores."
+          title: "(Sensemaker v2) Categorizar"
+          description: "Categorizar comentarios en temas y subtemas"
         bridge_scores:
-          title: "(Python) Puntuaciones puente"
-          description: "Calcula puntuaciones puente a partir de comentarios categorizados."
+          title: "(Sensemaker v2) Puntuaciones puente"
+          description: "Calcular puntuaciones puente entre grupos de opinion"
         report_text:
-          title: "(Python) Datos de resumen del informe"
-          description: "Genera datos de resumen estructurados para renderizar el informe."
+          title: "(Sensemaker v2) Resumir opiniones y temas"
+          description: "Resumir opiniones y temas a partir de comentarios categorizados"
         report_ui:
-          title: "(Python) Interfaz del informe"
-          description: "Renderiza la pagina final del informe de Sensemaker."
+          title: "(Sensemaker v2) Informe"
+          description: "Analizar y generar un informe en formato HTML"
