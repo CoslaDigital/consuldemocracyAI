@@ -3,6 +3,7 @@
 require Rails.root.join("app/lib/sensemaker")
 require Rails.root.join("app/lib/sensemaker/script_registry")
 require Rails.root.join("app/lib/sensemaker/backend")
+require Rails.root.join("lib/sensemaker_ext/paths")
 require Rails.root.join("lib/sensemaker_ext/backend/python")
 require Rails.root.join("lib/sensemaker_ext/script_registry_patch")
 require Rails.root.join("lib/sensemaker_ext/backend_patch")

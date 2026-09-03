@@ -101,11 +101,12 @@ module SensemakerExt
           output_basename: ->(_job) { "report.html" },
           output_suffixes: [],
           default_input_path: lambda { |job|
-            File.join(Sensemaker::Paths.job_directory(job), "report_data.json")
+            File.join(Sensemaker::Paths.job_directory(job), "report_data")
           },
-          input_suffixes: []
+          input_suffixes: %w[.json],
+          additional_input_scripts: %w[bridge_scores]
         },
-        cli_name: "sensemaking-report"
+        cli_name: nil
       }
     }.freeze
 

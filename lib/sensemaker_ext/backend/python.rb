@@ -14,6 +14,8 @@ module SensemakerExt
       end
 
       def build_command
+        return build_report_ui_command if report_ui?
+
         command_parts = [Shellwords.escape(cli_executable.to_s)]
         append_llm_flags(command_parts)
         append_script_flags(command_parts)
@@ -22,10 +24,14 @@ module SensemakerExt
       end
 
       def working_directory
+        return Rails.root if report_ui?
+
         artefacts.job_directory
       end
 
       def check_runtime_dependencies?
+        return check_report_ui_dependencies? if report_ui?
+
         unless system("which python3 > /dev/null 2>&1")
           job.record_error!("Python 3 not found in PATH")
           return false
@@ -52,6 +58,52 @@ module SensemakerExt
       end
 
       private
+
+        def report_ui?
+          job.script == "report_ui"
+        end
+
+        def build_report_ui_command
+          [
+            "node #{Shellwords.escape(report_builder_cli.to_s)}",
+            "inline",
+            "--bridging_scores #{Shellwords.escape(bridging_scores_path.to_s)}",
+            "--summary #{Shellwords.escape(summary_path.to_s)}",
+            "--output #{Shellwords.escape(artefacts.default_output_path.to_s)}"
+          ].join(" ")
+        end
+
+        def report_builder_cli
+          SensemakerExt::Paths.report_builder_folder.join("bin/cli.js")
+        end
+
+        def summary_path
+          resolved_input_path
+        end
+
+        def bridging_scores_path
+          artefacts.preparation_output_for("bridge_scores")
+        end
+
+        def check_report_ui_dependencies?
+          unless system("which node > /dev/null 2>&1")
+            job.record_error!("Node.js not found in PATH")
+            return false
+          end
+
+          return false unless file_exists?(Sensemaker::Paths.sensemaker_data_folder,
+                                           description: "Sensemaker data folder")
+          return false unless file_exists?(artefacts.job_directory,
+                                           description: "Sensemaker job data folder")
+          return false unless file_exists?(SensemakerExt::Paths.report_builder_folder,
+                                           description: "sensemaking-report-builder package folder")
+          return false unless file_exists?(report_builder_cli,
+                                           description: "sensemaking-report-builder CLI")
+          return false unless file_exists?(summary_path, description: "Report summary JSON")
+          return false unless file_exists?(bridging_scores_path, description: "Bridging scores CSV")
+
+          true
+        end
 
         def cli_executable
           cli_name = Sensemaker::ScriptRegistry.python_cli_for(job.script)
@@ -99,10 +151,6 @@ module SensemakerExt
           when "report_text"
             command_parts << "--input_csv #{input_path}"
             command_parts << "--output_dir #{output_dir}"
-          when "report_ui"
-            command_parts << "inline"
-            command_parts << "--summary #{input_path}"
-            command_parts << "--output #{output_dir}"
           else
             raise ArgumentError, "Unsupported python script for spike: #{job.script}"
           end
@@ -142,7 +190,7 @@ module SensemakerExt
         end
 
         def file_exists?(file_path, description:)
-          return true if File.exist?(file_path)
+          return true if file_path.present? && File.exist?(file_path)
 
           job.record_error!("#{description} not found: #{file_path}")
           false
