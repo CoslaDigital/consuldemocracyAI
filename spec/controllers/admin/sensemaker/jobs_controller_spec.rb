@@ -263,7 +263,7 @@ describe Admin::Sensemaker::JobsController do
     end
 
     context "with quick_action" do
-      it "creates job with runner.ts when quick_action is summary" do
+      it "creates job with the script named by quick_action" do
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
@@ -274,14 +274,14 @@ describe Admin::Sensemaker::JobsController do
             analysable_id: debate.id,
             additional_context: "Test"
           },
-          quick_action: "summary"
+          quick_action: "runner.ts"
         }
 
         job = Sensemaker::Job.last
         expect(job.script).to eq("runner.ts")
       end
 
-      it "creates job with sensemaking-report-ui when quick_action is report" do
+      it "creates job with sensemaking-report-ui when quick_action is the report script" do
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
         allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
@@ -292,11 +292,26 @@ describe Admin::Sensemaker::JobsController do
             analysable_id: debate.id,
             additional_context: "Test"
           },
-          quick_action: "report"
+          quick_action: "sensemaking-report-ui"
         }
 
         job = Sensemaker::Job.last
         expect(job.script).to eq("sensemaking-report-ui")
+      end
+
+      it "redirects with script_required alert when quick_action is not a known script" do
+        post :create, params: {
+          sensemaker_job: {
+            analysable_type: "Debate",
+            analysable_id: debate.id,
+            additional_context: "Test"
+          },
+          quick_action: "not-a-script"
+        }
+
+        expect(response).to redirect_to(new_admin_sensemaker_job_path(target_type: "Debate",
+                                                                      target_id: debate.id))
+        expect(flash[:alert]).to eq(I18n.t("admin.sensemaker.notice.script_required"))
       end
     end
 
