@@ -75,8 +75,19 @@ module Sensemaker
       input_suffixes.empty? ? [base_path] : input_suffixes.map { |suffix| "#{base_path}#{suffix}" }
     end
 
+    def additional_input_artefact_paths
+      Array(config[:additional_input_scripts]).flat_map do |script|
+        preparation_outputs_for(script)
+      end
+    end
+
     def existing_input_artefact_paths
-      input_artefact_paths.select { |path| File.exist?(path) }
+      existing_direct_input_artefact_paths = input_artefact_paths.select { |path| File.exist?(path) }
+      (existing_direct_input_artefact_paths + additional_input_artefact_paths).uniq
+    end
+
+    def existing_preparation_output_artefact_paths
+      preparation_output_paths_by_script.values.flatten
     end
 
     def metadata_path
@@ -88,6 +99,39 @@ module Sensemaker
 
     def complete?
       output_artefact_paths.all? { |path| File.exist?(path) }
+    end
+
+    def preparation_jobs
+      jobs = []
+      queue = job.children.order(:id).to_a
+      while (child = queue.shift)
+        jobs << child
+        queue.concat(child.children.order(:id).to_a)
+      end
+      jobs
+    end
+
+    # When multiple prep jobs share a script, prefer the latest by id that has
+    # at least one existing output file.
+    def preparation_output_paths_by_script
+      result = {}
+      preparation_jobs.group_by(&:script).each do |script, jobs|
+        preferred = jobs.sort_by(&:id).reverse.find do |prep_job|
+          prep_job.artefacts.existing_output_artefact_paths.any?
+        end
+        next if preferred.nil?
+
+        result[script] = preferred.artefacts.existing_output_artefact_paths
+      end
+      result
+    end
+
+    def preparation_outputs_for(script)
+      preparation_output_paths_by_script[script.to_s] || []
+    end
+
+    def preparation_output_for(script)
+      preparation_outputs_for(script).first
     end
 
     def cleanup
@@ -112,7 +156,8 @@ module Sensemaker
           output_basename: DEFAULT_OUTPUT_BASENAME,
           output_suffixes: [],
           default_input_path: DEFAULT_INPUT_PATH,
-          input_suffixes: []
+          input_suffixes: [],
+          additional_input_scripts: []
         }
       end
 
