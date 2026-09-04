@@ -3,18 +3,10 @@ require "shellwords"
 module Sensemaker
   class JobRunner
     TIMEOUT = 1800
-    attr_reader :job, :backend
+    attr_reader :job
 
     def initialize(job)
       @job = job
-      @runtime_config = Sensemaker::RuntimeConfig.new(
-        setting: Setting,
-        llm_context: Llm::Config.context
-      )
-      @backend = Sensemaker::Backend.for(
-        job,
-        runtime_config: @runtime_config
-      )
     end
 
     def run
@@ -38,6 +30,10 @@ module Sensemaker
       artefacts.default_output_path
     end
 
+    def backend
+      @backend ||= build_backend
+    end
+
     def self.enabled?
       Sensemaker.enabled?
     end
@@ -45,10 +41,21 @@ module Sensemaker
     private
 
       def runtime_config
-        @runtime_config
+        @runtime_config ||= Sensemaker::RuntimeConfig.new(setting: Setting)
+      end
+
+      def build_backend
+        Sensemaker::Backend.for(job, runtime_config: runtime_config)
+      end
+
+      def rebuild_runtime!
+        @runtime_config = Sensemaker::RuntimeConfig.new(setting: Setting)
+        @backend = Sensemaker::Backend.for(job, runtime_config: @runtime_config)
       end
 
       def execute_job_workflow
+        rebuild_runtime!
+
         job.update!(started_at: Time.current)
         artefacts.ensure_directory!
 
