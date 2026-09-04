@@ -120,6 +120,29 @@ describe Sensemaker::JobRunner do
     end
   end
 
+  describe "runtime config lifecycle" do
+    it "does not capture Llm::Config.context during initialize" do
+      expect(Llm::Config).not_to receive(:context)
+
+      Sensemaker::JobRunner.new(job)
+    end
+
+    it "rebuilds runtime config when the workflow starts" do
+      allow(Llm::Config).to receive(:context).and_return(llm_context)
+      service = Sensemaker::JobRunner.new(job)
+      allow(service).to receive_messages(
+        check_dependencies?: false,
+        prepare_input_data: 0
+      )
+      allow(service.artefacts).to receive(:ensure_directory!)
+
+      expect(Llm::Config).to receive(:context).and_return(llm_context)
+
+      service.run_synchronously
+    end
+  end
+
+
   describe "#execute_script" do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
