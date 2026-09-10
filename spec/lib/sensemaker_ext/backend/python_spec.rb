@@ -118,4 +118,122 @@ describe SensemakerExt::Backend::Python do
       end
     end
   end
+
+  describe "proposition pipeline commands" do
+    let(:sensemaker_folder) { Rails.root.join("tmp/sensemaker_test_folder") }
+    let(:backend) { SensemakerExt::Backend::Python.new(job, runtime_config: runtime_config) }
+
+    before do
+      allow(Setting).to receive(:[]).and_call_original
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
+      allow(Llm::Config).to receive(:context).and_return(llm_context)
+      allow(Sensemaker::Paths).to receive(:sensemaker_folder).and_return(sensemaker_folder)
+      FileUtils.mkdir_p(sensemaker_folder.join("venv/bin"))
+      %w[
+        sensemaking-propositions
+        sensemaking-refine-propositions
+        sensemaking-world-model
+      ].each do |cli|
+        path = sensemaker_folder.join("venv/bin/#{cli}")
+        File.write(path, "#!/bin/sh\n")
+        File.chmod(0o755, path)
+      end
+    end
+
+    describe "propositions" do
+      let(:job) do
+        create(:sensemaker_job,
+               script: "propositions",
+               user: user,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               input_file: "#{data_folder}/job-cat/categorized",
+               additional_context: "Extra context")
+      end
+
+      before { FileUtils.mkdir_p(Sensemaker::Paths.job_directory(job)) }
+
+      it "builds command with r1 input, output dir, LLM flags, and context" do
+        command = backend.build_command
+        expected_input = "#{data_folder}/job-cat/categorized_without_other_filtered.csv"
+        expected_dir = Sensemaker::Paths.job_directory(job)
+
+        expect(command).to include("sensemaking-propositions")
+        expect(command).to include("--r1_input_file #{Shellwords.escape(expected_input)}")
+        expect(command).to include("--output_dir #{Shellwords.escape(expected_dir)}")
+        expect(command).to include("--adapter vertex")
+        expect(command).to include("--model_name gemini-2.5-flash-lite")
+        expect(command).to include("--additional_context #{Shellwords.escape("Extra context")}")
+      end
+
+      it "does not re-append filtered suffix when already present" do
+        job.update!(input_file: "#{data_folder}/job-cat/categorized_without_other_filtered.csv")
+        command = backend.build_command
+
+        r1_input_file = Shellwords.escape("#{data_folder}/job-cat/categorized_without_other_filtered.csv")
+        expect(command).to include("--r1_input_file #{r1_input_file}")
+        expect(command).not_to include("filtered.csv_without_other_filtered.csv")
+      end
+    end
+
+    describe "refine_propositions" do
+      let(:pkl_path) { "#{data_folder}/job-props/world_model.pkl" }
+      let(:job) do
+        create(:sensemaker_job,
+               script: "refine_propositions",
+               user: user,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               input_file: pkl_path,
+               additional_context: "Jury context")
+      end
+
+      before { FileUtils.mkdir_p(Sensemaker::Paths.job_directory(job)) }
+
+      it "builds command with pickle paths, pav selection, and LLM flags" do
+        command = backend.build_command
+        expected_output = File.join(Sensemaker::Paths.job_directory(job), "refined_world_model.pkl")
+
+        expect(command).to include("sensemaking-refine-propositions")
+        expect(command).to include("--input_pkl #{Shellwords.escape(pkl_path)}")
+        expect(command).to include("--output_pkl #{Shellwords.escape(expected_output)}")
+        expect(command).to include("--run_pav_selection")
+        expect(command).to include("--adapter vertex")
+        expect(command).to include("--model_name gemini-2.5-flash-lite")
+        expect(command).to include("--additional_context #{Shellwords.escape("Jury context")}")
+      end
+    end
+
+    describe "ranked_propositions" do
+      let(:pkl_path) { "#{data_folder}/job-refine/refined_world_model.pkl" }
+      let(:job) do
+        create(:sensemaker_job,
+               script: "ranked_propositions",
+               user: user,
+               analysable_type: "Debate",
+               analysable_id: debate.id,
+               input_file: pkl_path,
+               additional_context: "")
+      end
+
+      before { FileUtils.mkdir_p(Sensemaker::Paths.job_directory(job)) }
+
+      it "builds world-model export command without LLM flags" do
+        command = backend.build_command
+        expected_csv = File.join(
+          Sensemaker::Paths.job_directory(job),
+          "final_propositions_by_topic.csv"
+        )
+
+        expect(command).to include("sensemaking-world-model")
+        expect(command).to include("--query all_by_topic")
+        expect(command).to include("--output_format csv")
+        expect(command).to include(Shellwords.escape(pkl_path))
+        expect(command).to include("> #{Shellwords.escape(expected_csv)}")
+        expect(command).not_to include("--adapter")
+        expect(command).not_to include("--model_name")
+      end
+    end
+  end
 end

@@ -142,7 +142,6 @@ describe Sensemaker::JobRunner do
     end
   end
 
-
   describe "#execute_script" do
     let(:service) { Sensemaker::JobRunner.new(job) }
 
