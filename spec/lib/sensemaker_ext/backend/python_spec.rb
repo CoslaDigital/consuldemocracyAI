@@ -175,6 +175,19 @@ describe SensemakerExt::Backend::Python do
         expect(command).to include("--r1_input_file #{r1_input_file}")
         expect(command).not_to include("filtered.csv_without_other_filtered.csv")
       end
+
+      it "builds gemini adapter flags for Gemini API Studio" do
+        allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+        allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-pro")
+
+        command = backend.build_command
+
+        expect(command).to include("--adapter gemini")
+        expect(command).to include("--api_key gemini-secret")
+        expect(command).to include("--model_name gemini-2.5-pro")
+        expect(command).not_to include("--provider")
+        expect(command).not_to include("--vertex_project")
+      end
     end
 
     describe "refine_propositions" do
