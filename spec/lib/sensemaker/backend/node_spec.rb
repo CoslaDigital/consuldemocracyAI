@@ -224,6 +224,7 @@ describe Sensemaker::Backend::Node do
       expect(backend.check_runtime_dependencies?).to be false
       expect(job.error).to include("Gemini API Studio is only supported for Python")
     end
+
     {
       "Node.js is not available" => [
         -> { allow(backend).to receive(:system).with("which node > /dev/null 2>&1").and_return(false) },
