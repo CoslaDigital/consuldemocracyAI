@@ -33,6 +33,8 @@ module Llm
         case provider_name.to_s.downcase
         when /vertex/
           "vertex"
+        when /gemini/
+          "gemini"
         when /ollama/
           "ollama"
         when /openai/, /openrouter/, /mistral/

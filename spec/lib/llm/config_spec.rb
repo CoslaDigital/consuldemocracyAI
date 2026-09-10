@@ -62,6 +62,7 @@ describe Llm::Config do
   describe ".sensemaker_adapter_for" do
     it "maps supported providers" do
       expect(Llm::Config.sensemaker_adapter_for("VertexAI")).to eq("vertex")
+      expect(Llm::Config.sensemaker_adapter_for("Gemini")).to eq("gemini")
       expect(Llm::Config.sensemaker_adapter_for("OpenAI")).to eq("openai-compatible")
       expect(Llm::Config.sensemaker_adapter_for("OpenRouter")).to eq("openai-compatible")
       expect(Llm::Config.sensemaker_adapter_for("Mistral")).to eq("openai-compatible")
@@ -70,7 +71,6 @@ describe Llm::Config do
 
     it "returns nil for unsupported providers" do
       expect(Llm::Config.sensemaker_adapter_for("Anthropic")).to be(nil)
-      expect(Llm::Config.sensemaker_adapter_for("Gemini")).to be(nil)
     end
   end
 
