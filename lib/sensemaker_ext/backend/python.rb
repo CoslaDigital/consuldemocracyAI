@@ -123,6 +123,10 @@ module SensemakerExt
             command_parts << "--adapter vertex"
             command_parts << "--vertex_project #{Shellwords.escape(runtime_config.vertex_project_id)}"
             command_parts << "--vertex_location #{Shellwords.escape(runtime_config.vertex_location)}"
+          when "gemini"
+            command_parts << "--adapter gemini"
+            api_key = runtime_config.api_key
+            command_parts << "--api_key #{Shellwords.escape(api_key)}" if api_key.present?
           when "openai-compatible"
             command_parts << "--adapter openai-compatible"
             command_parts << "--provider #{Shellwords.escape(runtime_config.compat_provider)}"
