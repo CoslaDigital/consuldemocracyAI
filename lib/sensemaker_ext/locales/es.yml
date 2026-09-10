@@ -17,3 +17,12 @@ es:
         report_ui:
           title: "(Sensemaker v2) Informe"
           description: "Analizar y generar un informe en formato HTML"
+        propositions:
+          title: "(Sensemaker v2) Generar proposiciones"
+          description: "Generar proposiciones candidatas a partir de comentarios categorizados (requiere categorizar antes, o se ejecuta automaticamente)"
+        refine_propositions:
+          title: "(Sensemaker v2) Refinar proposiciones (jurado simulado)"
+          description: "Clasificar y refinar proposiciones con un jurado simulado (ejecucion larga; requiere la generacion de proposiciones previa)"
+        ranked_propositions:
+          title: "(Sensemaker v2) Exportar proposiciones clasificadas (CSV)"
+          description: "Pipeline completo: categorizar, generar proposiciones, refinamiento con jurado y exportar proposiciones clasificadas por tema. Muy largo y con mucho uso de LLM."

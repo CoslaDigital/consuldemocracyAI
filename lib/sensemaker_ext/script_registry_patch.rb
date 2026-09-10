@@ -88,12 +88,73 @@ module SensemakerExt
         },
         cli_name: "sensemaking-report-text"
       },
+      "propositions" => {
+        backend: :python,
+        logical_name: :propositions,
+        publishable: false,
+        internal: false,
+        requires_input: true,
+        requires_llm: true,
+        prep_steps: ["categorize"],
+        i18n_key: "propositions",
+        output_flag: :output_file,
+        artefact_config: {
+          output_basename: ->(_job) { "world_model.pkl" },
+          output_suffixes: [],
+          default_input_path: lambda { |job|
+            File.join(Sensemaker::Paths.job_directory(job), "categorized")
+          },
+          input_suffixes: []
+        },
+        cli_name: "sensemaking-propositions"
+      },
+      "refine_propositions" => {
+        backend: :python,
+        logical_name: :refine_propositions,
+        publishable: false,
+        internal: false,
+        requires_input: true,
+        requires_llm: true,
+        prep_steps: ["propositions"],
+        i18n_key: "refine_propositions",
+        output_flag: :output_file,
+        artefact_config: {
+          output_basename: ->(_job) { "refined_world_model.pkl" },
+          output_suffixes: [],
+          default_input_path: lambda { |job|
+            File.join(Sensemaker::Paths.job_directory(job), "world_model.pkl")
+          },
+          input_suffixes: []
+        },
+        cli_name: "sensemaking-refine-propositions"
+      },
+      "ranked_propositions" => {
+        backend: :python,
+        logical_name: :ranked_propositions,
+        publishable: false,
+        internal: false,
+        requires_input: true,
+        requires_llm: false,
+        prep_steps: ["refine_propositions"],
+        i18n_key: "ranked_propositions",
+        output_flag: :output_file,
+        artefact_config: {
+          output_basename: ->(_job) { "final_propositions_by_topic.csv" },
+          output_suffixes: [],
+          default_input_path: lambda { |job|
+            File.join(Sensemaker::Paths.job_directory(job), "refined_world_model.pkl")
+          },
+          input_suffixes: []
+        },
+        cli_name: "sensemaking-world-model"
+      },
       "report_ui" => {
         backend: :python,
         logical_name: :report,
         publishable: true,
         internal: false,
         requires_input: true,
+        requires_llm: false,
         prep_steps: ["report_text"],
         i18n_key: "report_ui",
         output_flag: :output_file,
@@ -165,6 +226,13 @@ module SensemakerExt
 
     def requires_input?(script)
       python_config_for(script)&.fetch(:requires_input) || super
+    end
+
+    def requires_llm?(script)
+      config = python_config_for(script)
+      return config.fetch(:requires_llm, true) if config
+
+      super
     end
 
     def python_cli_for(script)
