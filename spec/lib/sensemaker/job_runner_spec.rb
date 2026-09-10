@@ -51,8 +51,8 @@ describe Sensemaker::JobRunner do
       service.run_synchronously
     end
 
-    it "stops if execute_script returns false" do
-      expect(service).to receive(:execute_script).and_return(false)
+    it "stops if execute_script returns nil" do
+      expect(service).to receive(:execute_script).and_return(nil)
 
       service.run_synchronously
     end
@@ -212,6 +212,17 @@ describe Sensemaker::JobRunner do
     context "when artefacts are complete" do
       it "sets finished_at and does not set error" do
         allow(job.artefacts).to receive(:complete?).and_return(true)
+
+        service.send(:execute_job_workflow)
+
+        job.reload
+        expect(job.finished_at).to be_present
+        expect(job.error).to be(nil)
+      end
+
+      it "sets finished_at when the script succeeds with empty stdout" do
+        allow(job.artefacts).to receive(:complete?).and_return(true)
+        allow(service).to receive(:execute_script).and_return("")
 
         service.send(:execute_job_workflow)
 
