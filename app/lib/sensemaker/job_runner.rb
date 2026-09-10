@@ -2,7 +2,7 @@ require "shellwords"
 
 module Sensemaker
   class JobRunner
-    TIMEOUT = 1800
+    TIMEOUT = 2800
     attr_reader :job
 
     def initialize(job)
@@ -133,7 +133,7 @@ module Sensemaker
         end
 
         llm_error = runtime_config.validation_error
-        if llm_error.present?
+        if Sensemaker::ScriptRegistry.requires_llm?(job.script) && llm_error.present?
           job.record_error!(llm_error)
           return false
         end

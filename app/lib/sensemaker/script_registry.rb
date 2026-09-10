@@ -151,6 +151,13 @@ module Sensemaker
       config_for(script)&.fetch(:requires_input, true)
     end
 
+    def self.requires_llm?(script)
+      config = config_for(script)
+      return true if config.nil?
+
+      config.fetch(:requires_llm, true)
+    end
+
     def self.config_for(script)
       REGISTRY[script]
     end
