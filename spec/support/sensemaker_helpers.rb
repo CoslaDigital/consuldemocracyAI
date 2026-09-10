@@ -14,7 +14,8 @@ RSpec.shared_context "sensemaker llm config" do
       together_api_base: "https://api.together.xyz/v1",
       mistral_api_key: "mistral-secret",
       mistral_api_base: "https://api.mistral.ai/v1",
-      ollama_api_base: "http://localhost:11434"
+      ollama_api_base: "http://localhost:11434",
+      gemini_api_key: "gemini-secret"
     )
   end
   let(:llm_context) { double("LLM context", config: llm_config) }
