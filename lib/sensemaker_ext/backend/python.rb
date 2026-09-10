@@ -113,6 +113,8 @@ module SensemakerExt
         end
 
         def append_llm_flags(command_parts)
+          return unless Sensemaker::ScriptRegistry.requires_llm?(job.script)
+
           model_name = runtime_config.model
           command_parts << "--model_name #{Shellwords.escape(model_name)}" if model_name.present?
 
@@ -151,6 +153,18 @@ module SensemakerExt
           when "report_text"
             command_parts << "--input_csv #{input_path}"
             command_parts << "--output_dir #{output_dir}"
+          when "propositions"
+            command_parts << "--r1_input_file #{input_path}"
+            command_parts << "--output_dir #{output_dir}"
+          when "refine_propositions"
+            command_parts << "--input_pkl #{input_path}"
+            command_parts << "--output_pkl #{output_path}"
+            command_parts << "--run_pav_selection"
+          when "ranked_propositions"
+            command_parts << "--query all_by_topic"
+            command_parts << "--output_format csv"
+            command_parts << input_path
+            command_parts << "> #{output_path}"
           else
             raise ArgumentError, "Unsupported python script for spike: #{job.script}"
           end
@@ -166,7 +180,7 @@ module SensemakerExt
         end
 
         def supports_additional_context?
-          %w[categorize report_text].include?(job.script)
+          %w[categorize report_text propositions refine_propositions].include?(job.script)
         end
 
         def requires_input?
@@ -176,7 +190,7 @@ module SensemakerExt
         def resolved_input_path
           path = artefacts.input_path.to_s
           case job.script
-          when "bridge_scores"
+          when "bridge_scores", "propositions"
             return path if path.end_with?("_without_other_filtered.csv")
 
             "#{path}_without_other_filtered.csv"
