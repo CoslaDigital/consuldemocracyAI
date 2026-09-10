@@ -31,6 +31,11 @@ describe Sensemaker::RuntimeConfig do
       expect(runtime_config.adapter).to eq("openai-compatible")
     end
 
+    it "maps gemini provider to gemini adapter" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+      expect(runtime_config.adapter).to eq("gemini")
+    end
+
     it "maps ollama provider to ollama adapter" do
       allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("ollama")
       expect(runtime_config.adapter).to eq("ollama")
@@ -59,6 +64,15 @@ describe Sensemaker::RuntimeConfig do
       expect(runtime_config.compat_provider).to eq("openrouter")
       expect(runtime_config.api_key).to eq("openrouter-secret")
       expect(runtime_config.base_url).to eq("https://openrouter.ai/api/v1")
+    end
+
+    it "resolves gemini provider api key" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+
+      expect(runtime_config.adapter).to eq("gemini")
+      expect(runtime_config.compat_provider).to be(nil)
+      expect(runtime_config.api_key).to eq("gemini-secret")
+      expect(runtime_config.base_url).to be(nil)
     end
 
     it "resolves ollama base url" do
@@ -122,6 +136,21 @@ describe Sensemaker::RuntimeConfig do
 
       expect(runtime_config.validation_error)
         .to include("Sensemaker requires an API key for provider 'openai'")
+    end
+
+    it "returns nil when configuration is valid (Gemini)" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+      allow(setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash")
+
+      expect(runtime_config.validation_error).to be(nil)
+    end
+
+    it "returns error when Gemini has no API key" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+      allow(setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash")
+      allow(llm_config).to receive(:gemini_api_key).and_return(nil)
+
+      expect(runtime_config.validation_error).to include("Sensemaker requires a Gemini API key")
     end
   end
 

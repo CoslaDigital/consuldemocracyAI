@@ -31,13 +31,20 @@ module Sensemaker
     end
 
     def api_key
-      provider_name = compat_provider
-      return nil if provider_name.blank?
+      case adapter
+      when "gemini"
+        return llm_config.gemini_api_key.to_s.presence if llm_config.respond_to?(:gemini_api_key)
 
-      key_method = "#{provider_name}_api_key"
-      return nil unless llm_config.respond_to?(key_method)
+        nil
+      when "openai-compatible"
+        provider_name = compat_provider
+        return nil if provider_name.blank?
 
-      llm_config.public_send(key_method).to_s.presence
+        key_method = "#{provider_name}_api_key"
+        return nil unless llm_config.respond_to?(key_method)
+
+        llm_config.public_send(key_method).to_s.presence
+      end
     end
 
     def base_url
@@ -89,6 +96,10 @@ module Sensemaker
       if adapter == "openai-compatible" && api_key.blank?
         return "Sensemaker requires an API key for provider '#{compat_provider}'. " \
                "Set tenant secret llm.#{compat_provider}_api_key."
+      end
+
+      if adapter == "gemini" && api_key.blank?
+        return "Sensemaker requires a Gemini API key. Set tenant secret llm.gemini_api_key."
       end
 
       nil

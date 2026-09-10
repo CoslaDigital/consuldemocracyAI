@@ -76,6 +76,14 @@ module Sensemaker
       end
 
       def check_runtime_dependencies?
+        if runtime_config.adapter == "gemini"
+          job.record_error!(
+            "Gemini API Studio is only supported for Python Sensemaker scripts. " \
+            "Select a Python script, or use VertexAI / OpenRouter instead."
+          )
+          return false
+        end
+
         unless system("which node > /dev/null 2>&1")
           job.record_error!(
             "Node.js not found. Install Node.js to use the Sensemaker feature.\nPATH: #{ENV["PATH"]}"

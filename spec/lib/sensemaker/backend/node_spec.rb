@@ -208,12 +208,22 @@ describe Sensemaker::Backend::Node do
       allow(backend).to receive(:system).with("which node > /dev/null 2>&1").and_return(true)
       allow(backend).to receive(:system).with("which npx > /dev/null 2>&1").and_return(true)
       allow(File).to receive(:exist?).and_return(true)
+      allow(Llm::Config).to receive(:context).and_return(llm_context)
+      allow(Setting).to receive(:[]).and_call_original
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
     end
 
     it "returns true when all runtime dependencies are available" do
       expect(backend.check_runtime_dependencies?).to be true
     end
 
+    it "returns false when Gemini is selected for a Node script" do
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+
+      expect(backend.check_runtime_dependencies?).to be false
+      expect(job.error).to include("Gemini API Studio is only supported for Python")
+    end
     {
       "Node.js is not available" => [
         -> { allow(backend).to receive(:system).with("which node > /dev/null 2>&1").and_return(false) },
