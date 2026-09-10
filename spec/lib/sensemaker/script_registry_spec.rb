@@ -167,4 +167,14 @@ describe Sensemaker::ScriptRegistry do
       expect(Sensemaker::ScriptRegistry.requires_input?("sensemaking-report-ui")).to be true
     end
   end
+
+  describe ".requires_llm?" do
+    it "defaults to true for Node scripts" do
+      expect(Sensemaker::ScriptRegistry.requires_llm?("categorization_runner.ts")).to be true
+    end
+
+    it "defaults to true for unknown scripts" do
+      expect(Sensemaker::ScriptRegistry.requires_llm?("unknown")).to be true
+    end
+  end
 end
