@@ -15,6 +15,17 @@ module Sensemaker
       setting["llm.sensemaker_model"].to_s.presence
     end
 
+    def model_for(role)
+      case role.to_sym
+      when :primary
+        model
+      when :fast
+        setting["llm.sensemaker_fast_model"].to_s.presence || model
+      else
+        raise ArgumentError, "Unknown Sensemaker model role: #{role}"
+      end
+    end
+
     def adapter
       Llm::Config.sensemaker_adapter_for(provider)
     end
