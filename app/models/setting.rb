@@ -196,7 +196,8 @@ class Setting < ApplicationRecord
         "llm.use_ai_image_suggestions": false,
         "llm.use_sensemaker": false,
         "llm.sensemaker_provider": nil,
-        "llm.sensemaker_model": nil
+        "llm.sensemaker_model": nil,
+        "llm.sensemaker_fast_model": nil
       }
     end
 
