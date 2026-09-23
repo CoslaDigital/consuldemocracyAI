@@ -59,6 +59,13 @@ class Admin::Settings::LlmConfigurationTabComponent < ApplicationComponent
     options_for_select(Llm::Config.sensemaker_models_for(provider), selected: current)
   end
 
+  def sensemaker_fast_model_options
+    provider = Setting["llm.sensemaker_provider"]
+    current = Setting["llm.sensemaker_fast_model"]
+
+    options_for_select(Llm::Config.sensemaker_models_for(provider), selected: current)
+  end
+
   def sensemaker_model_disabled?
     Setting["llm.sensemaker_provider"].blank?
   end

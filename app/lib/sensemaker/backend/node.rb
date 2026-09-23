@@ -16,11 +16,16 @@ module Sensemaker
       def build_command
         return build_report_ui_command if report?
 
-        model_name = runtime_config.model
         additional_context = job.additional_context.presence if requires_input?
 
         command_parts = ["npx ts-node #{script_path}"]
-        command_parts << "--modelName #{Shellwords.escape(model_name)}" if model_name.present?
+
+        Sensemaker::ScriptRegistry.model_flags(job.script).each do |entry|
+          model_name = runtime_config.model_for(entry[:role])
+          next if model_name.blank?
+
+          command_parts << "#{entry[:flag]} #{Shellwords.escape(model_name)}"
+        end
 
         append_llm_flags(command_parts)
 

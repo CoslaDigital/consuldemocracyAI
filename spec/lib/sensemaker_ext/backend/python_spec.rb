@@ -127,6 +127,7 @@ describe SensemakerExt::Backend::Python do
       allow(Setting).to receive(:[]).and_call_original
       allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
       allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_fast_model").and_return(nil)
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Sensemaker::Paths).to receive(:sensemaker_folder).and_return(sensemaker_folder)
       FileUtils.mkdir_p(sensemaker_folder.join("venv/bin"))
@@ -204,7 +205,7 @@ describe SensemakerExt::Backend::Python do
 
       before { FileUtils.mkdir_p(Sensemaker::Paths.job_directory(job)) }
 
-      it "builds command with pickle paths, pav selection, and LLM flags" do
+      it "builds command with pickle paths, pav selection, and stage model flags" do
         command = backend.build_command
         expected_output = File.join(Sensemaker::Paths.job_directory(job), "refined_world_model.pkl")
 
@@ -213,8 +214,22 @@ describe SensemakerExt::Backend::Python do
         expect(command).to include("--output_pkl #{Shellwords.escape(expected_output)}")
         expect(command).to include("--run_pav_selection")
         expect(command).to include("--adapter vertex")
-        expect(command).to include("--model_name gemini-2.5-flash-lite")
+        expect(command).to include("--simulated_jury_model_name gemini-2.5-flash-lite")
+        expect(command).to include("--nuanced_propositions_model_name gemini-2.5-flash-lite")
+        expect(command).not_to include("--model_name")
         expect(command).to include("--additional_context #{Shellwords.escape("Jury context")}")
+      end
+
+      it "uses distinct fast and primary models when both are configured" do
+        allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-pro")
+        allow(Setting).to receive(:[]).with("llm.sensemaker_fast_model")
+          .and_return("gemini-2.5-flash-lite")
+
+        command = backend.build_command
+
+        expect(command).to include("--simulated_jury_model_name gemini-2.5-flash-lite")
+        expect(command).to include("--nuanced_propositions_model_name gemini-2.5-pro")
+        expect(command).not_to include("--model_name")
       end
     end
 
