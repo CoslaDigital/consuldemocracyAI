@@ -10,5 +10,6 @@
 <%= render Admin::Settings::TableComponent.new(setting_name: "llm_sensemaker_features_name") do %>
   <%= render Admin::Settings::RowComponent.new("llm.sensemaker_provider", type: :dropdown, tab: tab, options: sensemaker_provider_options) %>
   <%= render Admin::Settings::RowComponent.new("llm.sensemaker_model", type: :dropdown, tab: tab, options: sensemaker_model_options, disabled: sensemaker_model_disabled?) %>
+  <%= render Admin::Settings::RowComponent.new("llm.sensemaker_fast_model", type: :dropdown, tab: tab, options: sensemaker_fast_model_options, disabled: sensemaker_model_disabled?) %>
   <%= render Admin::Settings::RowComponent.new("llm.use_sensemaker", type: :feature, tab: tab, disabled: sensemaker_disabled?) %>
 <% end %>
