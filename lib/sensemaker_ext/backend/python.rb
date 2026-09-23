@@ -115,8 +115,12 @@ module SensemakerExt
         def append_llm_flags(command_parts)
           return unless Sensemaker::ScriptRegistry.requires_llm?(job.script)
 
-          model_name = runtime_config.model
-          command_parts << "--model_name #{Shellwords.escape(model_name)}" if model_name.present?
+          Sensemaker::ScriptRegistry.model_flags(job.script).each do |entry|
+            model_name = runtime_config.model_for(entry[:role])
+            next if model_name.blank?
+
+            command_parts << "#{entry[:flag]} #{Shellwords.escape(model_name)}"
+          end
 
           case runtime_config.adapter
           when "vertex"

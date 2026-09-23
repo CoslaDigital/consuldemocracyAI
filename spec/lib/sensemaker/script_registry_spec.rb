@@ -177,4 +177,19 @@ describe Sensemaker::ScriptRegistry do
       expect(Sensemaker::ScriptRegistry.requires_llm?("unknown")).to be true
     end
   end
+
+  describe ".model_flags" do
+    it "defaults Node LLM scripts to primary --modelName" do
+      expect(Sensemaker::ScriptRegistry.model_flags("categorization_runner.ts")).to eq(
+        [{ role: :primary, flag: "--modelName" }]
+      )
+      expect(Sensemaker::ScriptRegistry.model_flags("runner.ts")).to eq(
+        [{ role: :primary, flag: "--modelName" }]
+      )
+    end
+
+    it "returns no flags for unknown scripts" do
+      expect(Sensemaker::ScriptRegistry.model_flags("unknown")).to eq([])
+    end
+  end
 end

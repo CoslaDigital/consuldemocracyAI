@@ -158,6 +158,16 @@ module Sensemaker
       config.fetch(:requires_llm, true)
     end
 
+    def self.model_flags(script)
+      return [] unless requires_llm?(script)
+
+      config = config_for(script)
+      return config[:model_flags] if config&.key?(:model_flags)
+      return [] unless backend_for(script) == :node
+
+      [{ role: :primary, flag: "--modelName" }]
+    end
+
     def self.config_for(script)
       REGISTRY[script]
     end

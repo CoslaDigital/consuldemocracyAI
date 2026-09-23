@@ -32,7 +32,12 @@ module Sensemaker
         return report_ui_cli_flags if report?
 
         flags = {}
-        flags["modelName"] = runtime_config.model if runtime_config.model.present?
+        Sensemaker::ScriptRegistry.model_flags(job.script).each do |entry|
+          model_name = runtime_config.model_for(entry[:role])
+          next if model_name.blank?
+
+          flags[entry[:flag].to_s.delete_prefix("--")] = model_name
+        end
         flags.merge!(llm_cli_flags)
         flags["inputFile"] = artefacts.input_path.to_s if requires_input?
         if requires_input? && job.additional_context.present?
