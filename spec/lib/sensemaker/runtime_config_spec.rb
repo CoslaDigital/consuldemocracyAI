@@ -20,6 +20,34 @@ describe Sensemaker::RuntimeConfig do
     end
   end
 
+  describe "#model_for" do
+    before do
+      allow(setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-pro")
+    end
+
+    it "returns the primary model for :primary" do
+      expect(runtime_config.model_for(:primary)).to eq("gemini-2.5-pro")
+    end
+
+    it "returns the fast model when set" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_fast_model")
+        .and_return("gemini-2.5-flash-lite")
+
+      expect(runtime_config.model_for(:fast)).to eq("gemini-2.5-flash-lite")
+    end
+
+    it "falls back to the primary model when fast is blank" do
+      allow(setting).to receive(:[]).with("llm.sensemaker_fast_model").and_return(nil)
+
+      expect(runtime_config.model_for(:fast)).to eq("gemini-2.5-pro")
+    end
+
+    it "raises for an unknown role" do
+      expect { runtime_config.model_for(:unknown) }
+        .to raise_error(ArgumentError, /Unknown Sensemaker model role/)
+    end
+  end
+
   describe "#adapter" do
     it "maps vertex provider to vertex adapter" do
       allow(setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")

@@ -23,12 +23,14 @@ describe Admin::Settings::LlmConfigurationTabComponent do
   let(:sensemaker_setting) { Setting.find_by!(key: "llm.use_sensemaker") }
   let(:sensemaker_provider_setting) { Setting.find_by!(key: "llm.sensemaker_provider") }
   let(:sensemaker_model_setting) { Setting.find_by!(key: "llm.sensemaker_model") }
+  let(:sensemaker_fast_model_setting) { Setting.find_by!(key: "llm.sensemaker_fast_model") }
   let(:provider_select_selector) { "#value_setting_#{provider_setting.id}" }
   let(:model_select_selector) { "#value_setting_#{model_setting.id}" }
   let(:feature_button_selector) { "button[aria-labelledby='title_setting_#{feature_setting.id}']" }
   let(:sensemaker_button_selector) { "button[aria-labelledby='title_setting_#{sensemaker_setting.id}']" }
   let(:sensemaker_provider_selector) { "#value_setting_#{sensemaker_provider_setting.id}" }
   let(:sensemaker_model_selector) { "#value_setting_#{sensemaker_model_setting.id}" }
+  let(:sensemaker_fast_model_selector) { "#value_setting_#{sensemaker_fast_model_setting.id}" }
 
   before do
     Setting["llm.provider"] = nil
@@ -37,6 +39,7 @@ describe Admin::Settings::LlmConfigurationTabComponent do
     Setting["llm.use_sensemaker"] = false
     Setting["llm.sensemaker_provider"] = nil
     Setting["llm.sensemaker_model"] = nil
+    Setting["llm.sensemaker_fast_model"] = nil
     allow(Llm::Config).to receive(:providers).and_return(providers_config)
     allow(RubyLLM.models).to receive(:by_provider).with(:openai).and_return(models_for_openai)
   end
@@ -192,9 +195,30 @@ describe Admin::Settings::LlmConfigurationTabComponent do
         "#{sensemaker_model_selector} option", text: "Gemini 2.5 Pro"
       )
 
+      expect(page).to have_css(sensemaker_fast_model_selector)
+      expect(page).to have_css(
+        "#{sensemaker_fast_model_selector} option", text: "Gemini 2.5 Flash"
+      )
+      expect(page).to have_css(
+        "#{sensemaker_fast_model_selector} option", text: "Gemini 2.5 Pro"
+      )
+      expect(page).to have_css(
+        "#{sensemaker_fast_model_selector} option[value='']"
+      )
+
       page.find(sensemaker_button_selector) do
         expect(page).to have_button "No", disabled: false
       end
+    end
+
+    it "selects the configured fast model when set" do
+      Setting["llm.sensemaker_fast_model"] = "gemini-2.5-pro"
+
+      render_inline component
+
+      expect(page).to have_css(
+        "#{sensemaker_fast_model_selector} option[selected]", text: "Gemini 2.5 Pro"
+      )
     end
   end
 end

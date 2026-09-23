@@ -126,7 +126,11 @@ module SensemakerExt
           },
           input_suffixes: []
         },
-        cli_name: "sensemaking-refine-propositions"
+        cli_name: "sensemaking-refine-propositions",
+        model_flags: [
+          { role: :fast, flag: "--simulated_jury_model_name" },
+          { role: :primary, flag: "--nuanced_propositions_model_name" }
+        ]
       },
       "ranked_propositions" => {
         backend: :python,
@@ -231,6 +235,18 @@ module SensemakerExt
     def requires_llm?(script)
       config = python_config_for(script)
       return config.fetch(:requires_llm, true) if config
+
+      super
+    end
+
+    def model_flags(script)
+      config = python_config_for(script)
+      if config
+        return [] unless config.fetch(:requires_llm, true)
+        return config[:model_flags] if config.key?(:model_flags)
+
+        return [{ role: :primary, flag: "--model_name" }]
+      end
 
       super
     end

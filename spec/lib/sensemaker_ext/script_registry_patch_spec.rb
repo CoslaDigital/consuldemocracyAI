@@ -30,6 +30,25 @@ describe SensemakerExt::ScriptRegistryPatch do
       expect(Sensemaker::ScriptRegistry.requires_llm?("ranked_propositions")).to be false
     end
 
+    it "maps refine_propositions to fast and primary stage model flags" do
+      expect(Sensemaker::ScriptRegistry.model_flags("refine_propositions")).to eq(
+        [
+          { role: :fast, flag: "--simulated_jury_model_name" },
+          { role: :primary, flag: "--nuanced_propositions_model_name" }
+        ]
+      )
+    end
+
+    it "defaults propositions to primary --model_name" do
+      expect(Sensemaker::ScriptRegistry.model_flags("propositions")).to eq(
+        [{ role: :primary, flag: "--model_name" }]
+      )
+    end
+
+    it "returns no model flags when the script does not require an LLM" do
+      expect(Sensemaker::ScriptRegistry.model_flags("ranked_propositions")).to eq([])
+    end
+
     it "marks report_ui as not requiring an LLM" do
       expect(Sensemaker::ScriptRegistry.requires_llm?("report_ui")).to be false
     end
