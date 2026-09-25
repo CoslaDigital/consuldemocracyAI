@@ -5,6 +5,24 @@ require "shellwords"
 module SensemakerExt
   module Backend
     class Python
+      SKIP_CLI_OPTION_KEYS = %w[
+        api_key
+        input_file
+        input_csv
+        input_pkl
+        r1_input_file
+        output_file
+        output_csv
+        output_pkl
+        output_dir
+        bridging_scores
+        summary
+        output
+        additional_context
+      ].freeze
+
+      BOOLEAN_CLI_FLAGS = %w[skip_autoraters run_pav_selection].freeze
+
       attr_reader :job, :artefacts, :runtime_config
 
       def initialize(job, runtime_config:)
@@ -13,14 +31,35 @@ module SensemakerExt
         @runtime_config = runtime_config
       end
 
+      def cli_flags
+        return report_ui_cli_flags if report_ui?
+
+        flags = {}
+        flags.merge!(llm_cli_flags)
+        flags.merge!(script_cli_flags)
+        if supports_additional_context?
+          context = job.additional_context.to_s
+          flags["additional_context"] = context unless context.empty?
+        end
+        flags
+      end
+
+      def persistable_cli_flags
+        cli_flags.except(*SKIP_CLI_OPTION_KEYS)
+      end
+
       def build_command
         return build_report_ui_command if report_ui?
 
-        command_parts = [Shellwords.escape(cli_executable.to_s)]
-        append_llm_flags(command_parts)
-        append_script_flags(command_parts)
-        append_additional_context_flags(command_parts)
-        command_parts.join(" ")
+        parts = [Shellwords.escape(cli_executable.to_s)]
+        parts.concat(cli_flags.map { |key, value| format_cli_flag(key, value) })
+
+        if job.script == "ranked_propositions"
+          parts << Shellwords.escape(resolved_input_path)
+          parts << "> #{Shellwords.escape(artefacts.default_output_path.to_s)}"
+        end
+
+        parts.join(" ")
       end
 
       def working_directory
@@ -64,13 +103,16 @@ module SensemakerExt
         end
 
         def build_report_ui_command
-          [
-            "node #{Shellwords.escape(report_builder_cli.to_s)}",
-            "inline",
-            "--bridging_scores #{Shellwords.escape(bridging_scores_path.to_s)}",
-            "--summary #{Shellwords.escape(summary_path.to_s)}",
-            "--output #{Shellwords.escape(artefacts.default_output_path.to_s)}"
-          ].join(" ")
+          prefix = "node #{Shellwords.escape(report_builder_cli.to_s)} inline"
+          ([prefix] + cli_flags.map { |key, value| format_cli_flag(key, value) }).join(" ")
+        end
+
+        def report_ui_cli_flags
+          {
+            "bridging_scores" => bridging_scores_path.to_s,
+            "summary" => summary_path.to_s,
+            "output" => artefacts.default_output_path.to_s
+          }
         end
 
         def report_builder_cli
@@ -112,79 +154,88 @@ module SensemakerExt
           Sensemaker::Paths.sensemaker_folder.join("venv/bin/#{cli_name}")
         end
 
-        def append_llm_flags(command_parts)
-          return unless Sensemaker::ScriptRegistry.requires_llm?(job.script)
+        def llm_cli_flags
+          return {} unless Sensemaker::ScriptRegistry.requires_llm?(job.script)
 
+          flags = {}
           Sensemaker::ScriptRegistry.model_flags(job.script).each do |entry|
             model_name = runtime_config.model_for(entry[:role])
             next if model_name.blank?
 
-            command_parts << "#{entry[:flag]} #{Shellwords.escape(model_name)}"
+            flags[entry[:flag].to_s.delete_prefix("--")] = model_name
           end
 
           case runtime_config.adapter
           when "vertex"
-            command_parts << "--adapter vertex"
-            command_parts << "--vertex_project #{Shellwords.escape(runtime_config.vertex_project_id)}"
-            command_parts << "--vertex_location #{Shellwords.escape(runtime_config.vertex_location)}"
+            flags["adapter"] = "vertex"
+            flags["vertex_project"] = runtime_config.vertex_project_id
+            flags["vertex_location"] = runtime_config.vertex_location
           when "gemini"
-            command_parts << "--adapter gemini"
+            flags["adapter"] = "gemini"
             api_key = runtime_config.api_key
-            command_parts << "--api_key #{Shellwords.escape(api_key)}" if api_key.present?
+            flags["api_key"] = api_key if api_key.present?
           when "openai-compatible"
-            command_parts << "--adapter openai-compatible"
-            command_parts << "--provider #{Shellwords.escape(runtime_config.compat_provider)}"
+            flags["adapter"] = "openai-compatible"
+            flags["provider"] = runtime_config.compat_provider
             api_key = runtime_config.api_key
-            command_parts << "--api_key #{Shellwords.escape(api_key)}" if api_key.present?
+            flags["api_key"] = api_key if api_key.present?
           end
 
           base_url = runtime_config.base_url
-          command_parts << "--base_url #{Shellwords.escape(base_url)}" if base_url.present?
+          flags["base_url"] = base_url if base_url.present?
+          flags
         end
 
-        def append_script_flags(command_parts)
-          input_path = Shellwords.escape(resolved_input_path)
-          output_path = Shellwords.escape(artefacts.default_output_path.to_s)
-          output_dir = Shellwords.escape(artefacts.job_directory.to_s)
+        def script_cli_flags
+          input_path = resolved_input_path
+          output_path = artefacts.default_output_path.to_s
+          output_dir = artefacts.job_directory.to_s
 
           case job.script
           when "health_check"
-            command_parts << "--output_file #{output_path}"
+            { "output_file" => output_path }
           when "categorize"
-            command_parts << "--input_file #{input_path}"
-            command_parts << "--output_dir #{output_dir}"
-            command_parts << "--skip_autoraters"
+            {
+              "input_file" => input_path,
+              "output_dir" => output_dir,
+              "skip_autoraters" => true
+            }
           when "bridge_scores"
-            command_parts << "--input_csv #{input_path}"
-            command_parts << "--output_csv #{output_path}"
-            command_parts << "--scorer_type GEMINI"
+            {
+              "input_csv" => input_path,
+              "output_csv" => output_path,
+              "scorer_type" => "GEMINI"
+            }
           when "report_text"
-            command_parts << "--input_csv #{input_path}"
-            command_parts << "--output_dir #{output_dir}"
+            {
+              "input_csv" => input_path,
+              "output_dir" => output_dir
+            }
           when "propositions"
-            command_parts << "--r1_input_file #{input_path}"
-            command_parts << "--output_dir #{output_dir}"
+            {
+              "r1_input_file" => input_path,
+              "output_dir" => output_dir
+            }
           when "refine_propositions"
-            command_parts << "--input_pkl #{input_path}"
-            command_parts << "--output_pkl #{output_path}"
-            command_parts << "--run_pav_selection"
+            {
+              "input_pkl" => input_path,
+              "output_pkl" => output_path,
+              "run_pav_selection" => true
+            }
           when "ranked_propositions"
-            command_parts << "--query all_by_topic"
-            command_parts << "--output_format csv"
-            command_parts << input_path
-            command_parts << "> #{output_path}"
+            {
+              "query" => "all_by_topic",
+              "output_format" => "csv"
+            }
           else
             raise ArgumentError, "Unsupported python script for spike: #{job.script}"
           end
         end
 
-        def append_additional_context_flags(command_parts)
-          return unless supports_additional_context?
+        def format_cli_flag(key, value)
+          return "--#{key}" if BOOLEAN_CLI_FLAGS.include?(key) && value == true
 
-          context = job.additional_context.to_s
-          return if context.empty?
-
-          command_parts << "--additional_context #{Shellwords.escape(context)}"
+          "--#{key} #{Shellwords.escape(value.to_s)}"
         end
 
         def supports_additional_context?

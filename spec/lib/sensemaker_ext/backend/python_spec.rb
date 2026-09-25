@@ -189,6 +189,56 @@ describe SensemakerExt::Backend::Python do
         expect(command).not_to include("--provider")
         expect(command).not_to include("--vertex_project")
       end
+
+      describe "#cli_flags" do
+        it "returns structured flags for a vertex propositions command" do
+          flags = backend.cli_flags
+          expected_input = "#{data_folder}/job-cat/categorized_without_other_filtered.csv"
+          expected_dir = Sensemaker::Paths.job_directory(job)
+
+          expect(flags).to include(
+            "adapter" => "vertex",
+            "model_name" => "gemini-2.5-flash-lite",
+            "vertex_project" => "sensemaker-466109",
+            "vertex_location" => "global",
+            "r1_input_file" => expected_input,
+            "output_dir" => expected_dir,
+            "additional_context" => "Extra context"
+          )
+          expect(flags).not_to have_key("api_key")
+          expect(flags).not_to have_key("base_url")
+        end
+      end
+
+      describe "#persistable_cli_flags" do
+        it "omits path keys but keeps adapter and model metadata" do
+          flags = backend.persistable_cli_flags
+
+          expect(flags).to include(
+            "adapter" => "vertex",
+            "model_name" => "gemini-2.5-flash-lite",
+            "vertex_project" => "sensemaker-466109"
+          )
+          expect(flags).not_to have_key("r1_input_file")
+          expect(flags).not_to have_key("output_dir")
+          expect(flags).not_to have_key("api_key")
+          expect(flags).not_to have_key("additional_context")
+        end
+
+        it "omits api_key for Gemini API Studio" do
+          allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("Gemini")
+          allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-pro")
+
+          flags = backend.persistable_cli_flags
+
+          expect(flags).to include(
+            "adapter" => "gemini",
+            "model_name" => "gemini-2.5-pro"
+          )
+          expect(flags).not_to have_key("api_key")
+          expect(backend.cli_flags).to include("api_key" => "gemini-secret")
+        end
+      end
     end
 
     describe "refine_propositions" do
@@ -230,6 +280,23 @@ describe SensemakerExt::Backend::Python do
         expect(command).to include("--simulated_jury_model_name gemini-2.5-flash-lite")
         expect(command).to include("--nuanced_propositions_model_name gemini-2.5-pro")
         expect(command).not_to include("--model_name")
+      end
+
+      describe "#cli_flags" do
+        it "includes both stage model keys when fast model is set" do
+          allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-pro")
+          allow(Setting).to receive(:[]).with("llm.sensemaker_fast_model")
+            .and_return("gemini-2.5-flash-lite")
+
+          flags = backend.cli_flags
+
+          expect(flags).to include(
+            "simulated_jury_model_name" => "gemini-2.5-flash-lite",
+            "nuanced_propositions_model_name" => "gemini-2.5-pro",
+            "run_pav_selection" => true
+          )
+          expect(flags).not_to have_key("model_name")
+        end
       end
     end
 
