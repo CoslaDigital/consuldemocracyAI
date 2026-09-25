@@ -27,8 +27,8 @@ describe Sensemaker::Backend::Node do
     before do
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Setting).to receive(:[]).and_call_original
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
     end
 
     shared_examples "runner command with common flags" do |script_name, use_output_file_flag: true|
@@ -57,7 +57,7 @@ describe Sensemaker::Backend::Node do
     it_behaves_like "runner command with common flags", "runner.ts", use_output_file_flag: false
 
     it "returns the correct command for OpenAI-compatible providers" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("OpenAI")
 
       command = backend.build_command
       expect(command).to include("--adapter openai-compatible")
@@ -69,7 +69,7 @@ describe Sensemaker::Backend::Node do
     end
 
     it "omits baseUrl for OpenAI-compatible providers when not configured" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("OpenAI")
       allow(llm_config).to receive(:openai_api_base).and_return(nil)
 
       command = backend.build_command
@@ -77,7 +77,7 @@ describe Sensemaker::Backend::Node do
     end
 
     it "returns the correct command for ollama provider" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("ollama")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("ollama")
 
       command = backend.build_command
       expect(command).to include("--adapter ollama")
@@ -117,8 +117,8 @@ describe Sensemaker::Backend::Node do
     before do
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Setting).to receive(:[]).and_call_original
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("VertexAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("VertexAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
     end
 
     it "returns structured flags for a vertex runner command" do
@@ -137,7 +137,7 @@ describe Sensemaker::Backend::Node do
     end
 
     it "includes apiKey for OpenAI-compatible providers" do
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("OpenAI")
 
       flags = backend.cli_flags
 
@@ -160,8 +160,8 @@ describe Sensemaker::Backend::Node do
     before do
       allow(Llm::Config).to receive(:context).and_return(llm_context)
       allow(Setting).to receive(:[]).and_call_original
-      allow(Setting).to receive(:[]).with("llm.provider").and_return("OpenAI")
-      allow(Setting).to receive(:[]).with("llm.model").and_return("gemini-2.5-flash-lite")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_provider").and_return("OpenAI")
+      allow(Setting).to receive(:[]).with("llm.sensemaker_model").and_return("gemini-2.5-flash-lite")
     end
 
     it "omits secrets and path keys but keeps adapter metadata" do
