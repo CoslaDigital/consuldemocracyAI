@@ -154,6 +154,26 @@ describe Sensemaker::Backend::Node do
 
       expect(backend.cli_flags["additionalContext"]).to eq("Jury brief")
     end
+
+    it "uses reportTitle from run_options for report-ui when present" do
+      job.update!(script: "sensemaking-report-ui", run_options: { "reportTitle" => "Custom Jury Report" })
+      conversation = instance_double(Sensemaker::Conversation)
+      allow(job).to receive(:conversation).and_return(conversation)
+      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+      expect(backend.cli_flags["reportTitle"]).to eq("Custom Jury Report")
+      expect(backend.build_command).to include(Shellwords.escape("Custom Jury Report"))
+      expect(backend.build_command).not_to include(Shellwords.escape("Report for Test Label"))
+    end
+
+    it "defaults reportTitle for report-ui when run_options omit it" do
+      job.update!(script: "sensemaking-report-ui", run_options: {})
+      conversation = instance_double(Sensemaker::Conversation)
+      allow(job).to receive(:conversation).and_return(conversation)
+      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+      expect(backend.cli_flags["reportTitle"]).to eq("Report for Test Label")
+    end
   end
 
   describe "#persistable_cli_flags" do
