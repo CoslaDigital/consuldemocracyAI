@@ -29,6 +29,7 @@ module Sensemaker
     belongs_to :analysable, polymorphic: true, optional: true
 
     attribute :cli_flags, :json, default: -> { {} }
+    attribute :run_options, :json, default: -> { {} }
 
     before_save :set_persisted_output_if_successful
     after_destroy :cleanup_associated_files
