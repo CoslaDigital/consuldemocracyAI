@@ -9,6 +9,7 @@ FactoryBot.define do
     analysable_id { create(:debate).id }
     additional_context { "Test context" }
     cli_flags { {} }
+    run_options { {} }
     published { false }
 
     trait :unpublished do
