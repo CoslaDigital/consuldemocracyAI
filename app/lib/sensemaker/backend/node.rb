@@ -145,7 +145,7 @@ module Sensemaker
             "summary" => "#{base}-summary.json",
             "comments" => "#{base}-comments-with-scores.json",
             "metadata" => artefacts.metadata_path.to_s,
-            "reportTitle" => "Report for #{target_label}",
+            "reportTitle" => job.run_options.to_h["reportTitle"].presence || "Report for #{target_label}",
             "outputDir" => artefacts.job_directory.to_s,
             "outputFile" => output_file_name
           }
