@@ -109,6 +109,8 @@ describe Sensemaker::Backend::Node do
       expect(command).to include("--outputDir #{Shellwords.escape(job.artefacts.job_directory.to_s)}")
       expect(command).to include("--outputFile")
       expect(command).to include("report.html")
+      expect(command).not_to include("--config")
+      expect(command).not_to include("--inputDir")
       expect(backend.output_file_name).to eq("report.html")
     end
   end
@@ -173,6 +175,36 @@ describe Sensemaker::Backend::Node do
       allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
 
       expect(backend.cli_flags["reportTitle"]).to eq("Report for Test Label")
+    end
+
+    it "omits config when run_options config is blank for report-ui" do
+      job.update!(script: "sensemaking-report-ui", run_options: {})
+      conversation = instance_double(Sensemaker::Conversation)
+      allow(job).to receive(:conversation).and_return(conversation)
+      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+      flags = backend.cli_flags
+      expect(flags).not_to have_key("config")
+      expect(flags).not_to have_key("inputDir")
+      expect(backend.build_command).not_to include("--config")
+      expect(backend.build_command).not_to include("--inputDir")
+    end
+
+    it "writes config.json and passes --config when run_options config is present for report-ui" do
+      config = { "excluded_topics" => ["Other"], "title" => "Custom Title" }
+      job.update!(script: "sensemaking-report-ui", run_options: { "config" => config })
+      conversation = instance_double(Sensemaker::Conversation)
+      allow(job).to receive(:conversation).and_return(conversation)
+      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+      expected_config = File.join(job.artefacts.job_directory, "config.json")
+      flags = backend.cli_flags
+
+      expect(flags["config"]).to eq(expected_config)
+      expect(flags).not_to have_key("inputDir")
+      expect(File.read(expected_config)).to eq(JSON.pretty_generate(config))
+      expect(backend.build_command).to include("--config #{Shellwords.escape(expected_config)}")
+      expect(backend.build_command).not_to include("--inputDir")
     end
   end
 
