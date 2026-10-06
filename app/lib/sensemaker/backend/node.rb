@@ -140,7 +140,7 @@ module Sensemaker
           target_label = conversation.target_label(format: :full)
           base = artefacts.input_path
 
-          {
+          flags = {
             "topics" => "#{base}-topic-stats.json",
             "summary" => "#{base}-summary.json",
             "comments" => "#{base}-comments-with-scores.json",
@@ -149,6 +149,19 @@ module Sensemaker
             "outputDir" => artefacts.job_directory.to_s,
             "outputFile" => output_file_name
           }
+          config_path = write_report_config_if_present
+          flags["config"] = config_path if config_path
+          flags
+        end
+
+        def write_report_config_if_present
+          config = job.run_options.to_h["config"]
+          return nil unless config.is_a?(Hash) && config.present?
+
+          artefacts.ensure_directory!
+          path = File.join(artefacts.job_directory, "config.json")
+          File.write(path, JSON.pretty_generate(config))
+          path
         end
 
         def llm_cli_flags
