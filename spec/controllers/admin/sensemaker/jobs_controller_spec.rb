@@ -298,6 +298,37 @@ describe Admin::Sensemaker::JobsController do
         job = Sensemaker::Job.last
         expect(job.script).to eq("sensemaking-report-ui")
       end
+
+      it "persists submitted report config in run_options" do
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:check_dependencies?).and_return(false)
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:prepare_input_data)
+        allow_any_instance_of(Sensemaker::JobRunner).to receive(:execute_script).and_return("")
+
+        post :create, params: {
+          sensemaker_job: {
+            analysable_type: "Debate",
+            analysable_id: debate.id,
+            additional_context: "Test",
+            run_options: {
+              config: {
+                title: " Custom Report ",
+                logo: "",
+                excluded_topics: ["Other", ""]
+              }
+            }
+          },
+          quick_action: "report"
+        }
+
+        job = Sensemaker::Job.last
+        expect(job.run_options).to eq(
+          "config" => {
+            "title" => " Custom Report ",
+            "logo" => "",
+            "excluded_topics" => ["Other", ""]
+          }
+        )
+      end
     end
 
     context "when script is missing and no quick_action" do

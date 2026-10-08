@@ -359,16 +359,12 @@ describe Sensemaker::JobRunner do
         allow(service.backend).to receive(:after_input_prepared).and_call_original
       end
 
-      it "calls prepare_with_prep_job and writes report metadata" do
+      it "calls prepare_with_prep_job for report-ui" do
         allow(service).to receive(:prepare_with_prep_job).and_return(15)
-        metadata_path = job.artefacts.metadata_path
-        allow(File).to receive(:exist?).with(metadata_path).and_return(false)
-        allow(File).to receive(:write)
 
         result = service.send(:prepare_input_data)
 
         expect(result).to eq(15)
-        expect(File).to have_received(:write).with(metadata_path, anything)
       end
     end
 

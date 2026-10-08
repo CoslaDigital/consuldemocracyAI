@@ -319,7 +319,14 @@ class Admin::Sensemaker::JobsController < Admin::BaseController
     end
 
     def sensemaker_job_params
-      params.require(:sensemaker_job).permit(:analysable_type, :analysable_id, :script, :additional_context)
+      permitted = params.require(:sensemaker_job).permit(
+        :analysable_type, :analysable_id, :script, :additional_context
+      )
+      config = params.dig(:sensemaker_job, :run_options, :config)
+      if config.is_a?(ActionController::Parameters)
+        permitted[:run_options] = { config: config.permit!.to_h }
+      end
+      permitted
     end
 
     def result_title_for(obj)

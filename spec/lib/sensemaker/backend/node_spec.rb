@@ -95,6 +95,7 @@ describe Sensemaker::Backend::Node do
 
       command = backend.build_command
       input_path = job.artefacts.input_path
+      expected_config = job.artefacts.report_config_path
 
       expect(command).to include("npx sensemaking-report-ui inline")
       expect(command).to include("--topics")
@@ -103,15 +104,15 @@ describe Sensemaker::Backend::Node do
       expect(command).to include("#{input_path}-summary.json")
       expect(command).to include("--comments")
       expect(command).to include("#{input_path}-comments-with-scores.json")
-      expect(command).to include("--metadata")
-      expect(command).to include(job.artefacts.metadata_path)
-      expect(command).to include(Shellwords.escape("Report for Test Label"))
+      expect(command).to include("--config #{Shellwords.escape(expected_config)}")
       expect(command).to include("--outputDir #{Shellwords.escape(job.artefacts.job_directory.to_s)}")
       expect(command).to include("--outputFile")
       expect(command).to include("report.html")
-      expect(command).not_to include("--config")
+      expect(command).not_to include("--reportTitle")
+      expect(command).not_to include("--metadata")
       expect(command).not_to include("--inputDir")
       expect(backend.output_file_name).to eq("report.html")
+      expect(JSON.parse(File.read(expected_config))).to eq("title" => "Test Label")
     end
   end
 
@@ -157,54 +158,66 @@ describe Sensemaker::Backend::Node do
       expect(backend.cli_flags["additionalContext"]).to eq("Jury brief")
     end
 
-    it "uses reportTitle from run_options for report-ui when present" do
-      job.update!(script: "sensemaking-report-ui", run_options: { "reportTitle" => "Custom Jury Report" })
-      conversation = instance_double(Sensemaker::Conversation)
-      allow(job).to receive(:conversation).and_return(conversation)
-      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
-
-      expect(backend.cli_flags["reportTitle"]).to eq("Custom Jury Report")
-      expect(backend.build_command).to include(Shellwords.escape("Custom Jury Report"))
-      expect(backend.build_command).not_to include(Shellwords.escape("Report for Test Label"))
-    end
-
-    it "defaults reportTitle for report-ui when run_options omit it" do
+    it "writes config.json with default title when run_options config is blank for report-ui" do
       job.update!(script: "sensemaking-report-ui", run_options: {})
       conversation = instance_double(Sensemaker::Conversation)
       allow(job).to receive(:conversation).and_return(conversation)
       allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
 
-      expect(backend.cli_flags["reportTitle"]).to eq("Report for Test Label")
-    end
-
-    it "omits config when run_options config is blank for report-ui" do
-      job.update!(script: "sensemaking-report-ui", run_options: {})
-      conversation = instance_double(Sensemaker::Conversation)
-      allow(job).to receive(:conversation).and_return(conversation)
-      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
-
+      expected_config = job.artefacts.report_config_path
       flags = backend.cli_flags
-      expect(flags).not_to have_key("config")
+
+      expect(flags["config"]).to eq(expected_config)
+      expect(flags).not_to have_key("reportTitle")
+      expect(flags).not_to have_key("metadata")
       expect(flags).not_to have_key("inputDir")
-      expect(backend.build_command).not_to include("--config")
-      expect(backend.build_command).not_to include("--inputDir")
+      expect(JSON.parse(File.read(expected_config))).to eq("title" => "Test Label")
+      expect(backend.build_command).to include("--config #{Shellwords.escape(expected_config)}")
+      expect(backend.build_command).not_to include("--reportTitle")
+      expect(backend.build_command).not_to include("--metadata")
     end
 
-    it "writes config.json and passes --config when run_options config is present for report-ui" do
+    it "writes config.json merging run_options and defaulting blank title for report-ui" do
+      job.update!(
+        script: "sensemaking-report-ui",
+        run_options: {
+          "config" => {
+            "title" => "",
+            "logo" => "",
+            "excluded_topics" => ["Other"]
+          }
+        }
+      )
+      conversation = instance_double(Sensemaker::Conversation)
+      allow(job).to receive(:conversation).and_return(conversation)
+      allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+      expected_config = job.artefacts.report_config_path
+      flags = backend.cli_flags
+
+      expect(flags["config"]).to eq(expected_config)
+      expect(JSON.parse(File.read(expected_config))).to eq(
+        "title" => "Test Label",
+        "excluded_topics" => ["Other"]
+      )
+    end
+
+    it "writes config.json preserving a custom title for report-ui" do
       config = { "excluded_topics" => ["Other"], "title" => "Custom Title" }
       job.update!(script: "sensemaking-report-ui", run_options: { "config" => config })
       conversation = instance_double(Sensemaker::Conversation)
       allow(job).to receive(:conversation).and_return(conversation)
       allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
 
-      expected_config = File.join(job.artefacts.job_directory, "config.json")
+      expected_config = job.artefacts.report_config_path
       flags = backend.cli_flags
 
       expect(flags["config"]).to eq(expected_config)
-      expect(flags).not_to have_key("inputDir")
-      expect(File.read(expected_config)).to eq(JSON.pretty_generate(config))
+      expect(flags).not_to have_key("reportTitle")
+      expect(flags).not_to have_key("metadata")
+      expect(JSON.parse(File.read(expected_config))).to eq(config)
       expect(backend.build_command).to include("--config #{Shellwords.escape(expected_config)}")
-      expect(backend.build_command).not_to include("--inputDir")
+      expect(backend.build_command).not_to include("--reportTitle")
     end
   end
 
@@ -347,33 +360,9 @@ describe Sensemaker::Backend::Node do
       end
     end
 
-    context "when script is sensemaking-report-ui" do
-      before do
-        job.update!(script: "sensemaking-report-ui")
-        conversation = instance_double(Sensemaker::Conversation)
-        allow(job).to receive(:conversation).and_return(conversation)
-        allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
-      end
-
-      it "writes report metadata when file does not exist" do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(job.artefacts.metadata_path).and_return(false)
-        allow(File).to receive(:write)
-
-        backend.after_input_prepared
-
-        expect(File).to have_received(:write).with(job.artefacts.metadata_path, anything)
-      end
-
-      it "skips writing metadata when file already exists" do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(job.artefacts.metadata_path).and_return(true)
-        allow(File).to receive(:write)
-
-        backend.after_input_prepared
-
-        expect(File).not_to have_received(:write)
-      end
+    it "returns nil for the report-ui script" do
+      job.update!(script: "sensemaking-report-ui")
+      expect(backend.after_input_prepared).to be(nil)
     end
   end
 

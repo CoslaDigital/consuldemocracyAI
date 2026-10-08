@@ -72,6 +72,8 @@
         </div>
       </details>
 
+      <%= render Admin::Sensemaker::ReportConfigDialogComponent.new %>
+
       <div class="flex-between">
         <%= link_to t("admin.sensemaker.new.cancel"), admin_sensemaker_jobs_path, class: "" %>
 
@@ -80,11 +82,13 @@
                        type: "submit",
                        formaction: preview_admin_sensemaker_jobs_path(format: :csv),
                        class: "button", data: { temp_disable: true } %>
+          <%= button_tag t("admin.sensemaker.new.prepare_report"),
+                         type: "button",
+                         command: "show-modal",
+                         commandfor: "report-config-dialog",
+                         class: "button hollow" %>
           <%= button_tag t("admin.sensemaker.new.generate_summary"),
                          type: "submit", name: "quick_action", value: "summary",
-                         class: "button success", data: { temp_disable: true } %>
-          <%= button_tag t("admin.sensemaker.new.generate_report"),
-                         type: "submit", name: "quick_action", value: "report",
                          class: "button success", data: { temp_disable: true } %>
         </div>
       </div>
