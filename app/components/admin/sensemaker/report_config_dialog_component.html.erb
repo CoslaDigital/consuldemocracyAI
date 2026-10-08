@@ -1,4 +1,4 @@
-<dialog id="report-config-dialog" class="sensemaker-report-config-dialog">
+<dialog id="<%= dialog_id %>" class="sensemaker-report-config-dialog">
   <h4><%= t("admin.sensemaker.new.report_config_title") %></h4>
   <p class="help-text small"><%= t("admin.sensemaker.new.report_config_hint") %></p>
 
@@ -7,7 +7,7 @@
 
     <div class="sensemaker-report-config-field">
       <% if string_field?(definition) %>
-        <label for="sensemaker_job_run_options_config_<%= key %>">
+        <label for="sensemaker_job_run_options_config_<%= dialog_id %>_<%= key %>">
           <%= field_label(key, definition) %>
         </label>
         <% if field_description(key, definition).present? %>
@@ -15,7 +15,8 @@
         <% end %>
         <%= text_field_tag "sensemaker_job[run_options][config][#{key}]",
                            field_value(key),
-                           id: "sensemaker_job_run_options_config_#{key}" %>
+                           id: "sensemaker_job_run_options_config_#{dialog_id}_#{key}" %>
+
       <% else %>
         <fieldset data-sensemaker-string-list>
           <legend><%= field_label(key, definition) %></legend>
@@ -44,13 +45,13 @@
   <% end %>
 
   <div class="sensemaker-report-config-actions flex-between">
-    <button class="button" type="button" commandfor="report-config-dialog" command="close">
+    <button class="button" type="button" commandfor="<%= dialog_id %>" command="close">
       <%= t("admin.shared.close_modal") %>
     </button>
     <%= button_tag t("admin.sensemaker.new.generate_report"),
                    type: "submit",
                    name: "quick_action",
-                   value: "report",
+                   value: script,
                    class: "button success",
                    data: { temp_disable: true } %>
   </div>

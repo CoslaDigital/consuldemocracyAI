@@ -9,5 +9,9 @@ module SensemakerExt
         Rails.root.join("node_modules/@cosla/sensemaking-report-builder")
       end
     end
+
+    def self.report_builder_config_schema
+      report_builder_folder.join("schemas/config.v1.json")
+    end
   end
 end
