@@ -1,16 +1,29 @@
 # frozen_string_literal: true
 
 class Admin::Sensemaker::ReportConfigDialogComponent < ApplicationComponent
-  attr_reader :sensemaker_job
+  attr_reader :sensemaker_job, :script
 
-  def initialize(sensemaker_job)
+  def self.dialog_id_for(script)
+    "report-config-dialog-#{script.to_s.parameterize.tr("_", "-")}"
+  end
+
+
+  def initialize(sensemaker_job, script:)
     @sensemaker_job = sensemaker_job
+    @script = script
+  end
+
+  def dialog_id
+    self.class.dialog_id_for(script)
   end
 
   def properties
-    @properties ||= JSON.parse(
-      File.read(Sensemaker::Paths.report_ui_config_schema)
-    ).fetch("properties", {})
+    @properties ||= JSON.parse(File.read(schema_path)).fetch("properties", {})
+  end
+
+  def schema_path
+    Sensemaker::ScriptRegistry.config_schema_path(script) ||
+      Sensemaker::Paths.report_ui_config_schema
   end
 
   def string_field?(definition)

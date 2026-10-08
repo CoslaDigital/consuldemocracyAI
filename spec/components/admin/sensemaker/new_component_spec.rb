@@ -1,6 +1,8 @@
 require "rails_helper"
 
 describe Admin::Sensemaker::NewComponent do
+  include_context "sensemaker report ui config schema"
+
   let(:sensemaker_job) { Sensemaker::Job.new }
   let(:component) { Admin::Sensemaker::NewComponent.new(sensemaker_job, [], 0) }
 
@@ -8,8 +10,13 @@ describe Admin::Sensemaker::NewComponent do
     it "returns the localized label for each quick action" do
       expect(component.quick_action_label(:summary))
         .to eq(I18n.t("admin.sensemaker.new.generate_summary"))
-      expect(component.quick_action_label(:report))
-        .to eq(I18n.t("admin.sensemaker.new.generate_report"))
+    end
+  end
+
+  describe "#quick_prep_label" do
+    it "returns the localized prepare label" do
+      expect(component.quick_prep_label(:report))
+        .to eq(I18n.t("admin.sensemaker.new.prepare_report"))
     end
   end
 
@@ -19,21 +26,21 @@ describe Admin::Sensemaker::NewComponent do
       expect(component.quick_action_scripts(:report)).to include("sensemaking-report-ui")
     end
 
-    it "lists the node backend script first" do
+    it "lists the preferred backend script first" do
       allow(Sensemaker::ScriptRegistry).to receive(:scripts_for_logical_name)
-        .with(:summary).and_return(["report_text", "runner.ts"])
+        .with(:summary).and_return(["other-summary", "runner.ts"])
       allow(Sensemaker::ScriptRegistry).to receive(:backend_for).and_call_original
-      allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("report_text").and_return(:python)
+      allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("other-summary").and_return(:other)
 
-      expect(component.quick_action_scripts(:summary)).to eq(["runner.ts", "report_text"])
+      expect(component.quick_action_scripts(:summary)).to eq(["runner.ts", "other-summary"])
     end
 
-    it "keeps the registry order when no node script is registered" do
+    it "keeps the registry order when no preferred backend script is registered" do
       allow(Sensemaker::ScriptRegistry).to receive(:scripts_for_logical_name)
-        .with(:summary).and_return(["report_text"])
-      allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("report_text").and_return(:python)
+        .with(:summary).and_return(["other-summary"])
+      allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("other-summary").and_return(:other)
 
-      expect(component.quick_action_scripts(:summary)).to eq(["report_text"])
+      expect(component.quick_action_scripts(:summary)).to eq(["other-summary"])
     end
   end
 
@@ -51,26 +58,33 @@ describe Admin::Sensemaker::NewComponent do
           .with(:report).and_return(["sensemaking-report-ui"])
       end
 
-      it "submits that script directly instead of opening a dropdown" do
+      it "submits summary directly and opens prepare report dialog for report" do
         render_inline component
 
         expect(page).to have_button I18n.t("admin.sensemaker.new.generate_summary")
         expect(page).to have_css "button[name='quick_action'][value='runner.ts']"
-        expect(page).to have_css "button[name='quick_action'][value='sensemaking-report-ui']"
+        expect(page).to have_button I18n.t("admin.sensemaker.new.prepare_report")
+        expect(page).to have_css(
+          "button[type='button'][command='show-modal'][commandfor='report-config-dialog-sensemaking-report-ui']"
+        )
+        expect(page).to have_css("dialog#report-config-dialog-sensemaking-report-ui")
+        expect(page).to have_css(
+          "dialog#report-config-dialog-sensemaking-report-ui button[name='quick_action'][value='sensemaking-report-ui']"
+        )
         expect(page).not_to have_css ".quick-action-toggle"
       end
     end
 
-    context "when a quick action has several scripts" do
+    context "when summary has several scripts" do
       before do
         allow(Sensemaker::ScriptRegistry).to receive(:scripts_for_logical_name)
-          .with(:summary).and_return(["runner.ts", "report_text"])
+          .with(:summary).and_return(["runner.ts", "other-summary"])
         allow(Sensemaker::ScriptRegistry).to receive(:scripts_for_logical_name)
           .with(:report).and_return(["sensemaking-report-ui"])
         allow(Sensemaker::ScriptRegistry).to receive(:backend_for).and_call_original
-        allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("report_text").and_return(:python)
+        allow(Sensemaker::ScriptRegistry).to receive(:backend_for).with("other-summary").and_return(:other)
         allow(Sensemaker::ScriptRegistry).to receive(:i18n_key).and_call_original
-        allow(Sensemaker::ScriptRegistry).to receive(:i18n_key).with("report_text").and_return("report_text")
+        allow(Sensemaker::ScriptRegistry).to receive(:i18n_key).with("other-summary").and_return("runner_ts")
       end
 
       it "opens a dropdown instead of submitting" do
@@ -89,7 +103,7 @@ describe Admin::Sensemaker::NewComponent do
           "#sensemaker_summary_scripts button[name='quick_action'][value='runner.ts']"
         )
         expect(page).to have_css(
-          "#sensemaker_summary_scripts button[name='quick_action'][value='report_text']"
+          "#sensemaker_summary_scripts button[name='quick_action'][value='other-summary']"
         )
       end
     end

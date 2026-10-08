@@ -95,26 +95,24 @@ module SensemakerExt
         end
 
         def report_ui_cli_flags
-          flags = {
+          {
             "bridging_scores" => bridging_scores_path.to_s,
             "summary" => summary_path.to_s,
             "output" => artefacts.default_output_path.to_s,
-            "inputDir" => artefacts.job_directory.to_s
+            "inputDir" => artefacts.job_directory.to_s,
+            "config" => write_report_config
           }
-          config_path = write_report_config_if_present
-          flags["config"] = config_path if config_path
-          flags
         end
 
-        def write_report_config_if_present
+        def write_report_config
           config = job.run_options.to_h["config"]
-          return nil unless config.is_a?(Hash) && config.present?
+          config = config.is_a?(Hash) ? config.deep_dup.stringify_keys : {}
+          config.reject! { |_, value| value.blank? }
+          config["title"] ||= job.conversation.target_label(format: :full)
 
-          artefacts.ensure_directory!
-          path = File.join(artefacts.job_directory, "config.json")
-          File.write(path, JSON.pretty_generate(config))
-          path
+          artefacts.write_report_config(config)
         end
+
 
         def report_builder_cli
           SensemakerExt::Paths.report_builder_folder.join("bin/cli.js")

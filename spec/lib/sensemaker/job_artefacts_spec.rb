@@ -400,68 +400,105 @@ describe Sensemaker::JobArtefacts do
       expect(artefacts.existing_input_artefact_paths).to eq([existing])
     end
 
-    context "with python report_ui prep tree" do
-      before { SensemakerExt::Loader.install! }
+    context "with additional_input_scripts from the prep tree" do
+      let(:alt_summary_dir) { "#{data_folder}/job-alt-summary" }
+      let(:alt_bridge_dir) { "#{data_folder}/job-alt-bridge" }
+      let(:alt_categorize_dir) { "#{data_folder}/job-alt-categorize" }
+      let(:summary_base) { File.join(alt_summary_dir, "report_data") }
+      let(:summary_json) { "#{summary_base}.json" }
+      let(:bridging_csv) { File.join(alt_bridge_dir, "bridging_scores.csv") }
+      let(:categorized) { File.join(alt_categorize_dir, "categorized_with_other.csv") }
 
-      it "lists only step inputs: summary json and bridging scores" do
+      before do
+        allow(Sensemaker::ScriptRegistry).to receive(:artefact_config).and_call_original
+        allow(Sensemaker::ScriptRegistry).to receive(:artefact_config).with("alt_report").and_return(
+          output_basename: ->(_job) { "report.html" },
+          output_suffixes: [],
+          default_input_path: nil,
+          input_suffixes: %w[.json],
+          additional_input_scripts: %w[alt_bridge]
+        )
+        allow(Sensemaker::ScriptRegistry).to receive(:artefact_config).with("alt_summary").and_return(
+          output_basename: ->(_job) { "report_data" },
+          output_suffixes: %w[.json _with_opinions.json],
+          default_input_path: nil,
+          input_suffixes: [],
+          additional_input_scripts: []
+        )
+        allow(Sensemaker::ScriptRegistry).to receive(:artefact_config).with("alt_bridge").and_return(
+          output_basename: ->(_job) { "bridging_scores.csv" },
+          output_suffixes: [],
+          default_input_path: nil,
+          input_suffixes: [],
+          additional_input_scripts: []
+        )
+        allow(Sensemaker::ScriptRegistry).to receive(:artefact_config).with("alt_categorize").and_return(
+          output_basename: ->(_job) { "categorized" },
+          output_suffixes: %w[
+            _with_other.csv
+            _with_other_filtered.csv
+            _without_other.csv
+            _without_other_filtered.csv
+            _with_other_topic_tree.txt
+          ],
+          default_input_path: nil,
+          input_suffixes: [],
+          additional_input_scripts: []
+        )
+      end
+
+      it "lists only direct inputs and configured additional prep outputs" do
         allow(File).to receive(:exist?).and_call_original
         allow(Sensemaker::Paths).to receive(:job_directory) do |j|
           "#{data_folder}/job-#{j.id}"
         end
 
-        report_text_dir = "#{data_folder}/job-report-text"
-        bridge_dir = "#{data_folder}/job-bridge"
-        cat_dir = "#{data_folder}/job-cat"
-        summary_base = File.join(report_text_dir, "report_data")
-        summary_json = "#{summary_base}.json"
-        bridging_csv = File.join(bridge_dir, "bridging_scores.csv")
-        categorized = File.join(cat_dir, "categorized_with_other.csv")
-
         parent = create(:sensemaker_job,
                         analysable_type: "Debate",
                         analysable_id: debate.id,
-                        script: "report_ui",
+                        script: "alt_report",
                         user: user,
                         started_at: Time.current,
                         input_file: summary_base)
-        report_text = create(:sensemaker_job,
+        alt_summary = create(:sensemaker_job,
                              parent_job: parent,
                              analysable_type: "Debate",
                              analysable_id: debate.id,
-                             script: "report_text",
+                             script: "alt_summary",
                              user: user,
                              started_at: Time.current)
-        bridge = create(:sensemaker_job,
-                        parent_job: report_text,
-                        analysable_type: "Debate",
-                        analysable_id: debate.id,
-                        script: "bridge_scores",
-                        user: user,
-                        started_at: Time.current)
-        categorize = create(:sensemaker_job,
-                            parent_job: bridge,
+        alt_bridge = create(:sensemaker_job,
+                            parent_job: alt_summary,
                             analysable_type: "Debate",
                             analysable_id: debate.id,
-                            script: "categorize",
+                            script: "alt_bridge",
                             user: user,
                             started_at: Time.current)
+        alt_categorize = create(:sensemaker_job,
+                                parent_job: alt_bridge,
+                                analysable_type: "Debate",
+                                analysable_id: debate.id,
+                                script: "alt_categorize",
+                                user: user,
+                                started_at: Time.current)
 
-        allow(Sensemaker::Paths).to receive(:job_directory).with(report_text).and_return(report_text_dir)
-        allow(Sensemaker::Paths).to receive(:job_directory).with(bridge).and_return(bridge_dir)
-        allow(Sensemaker::Paths).to receive(:job_directory).with(categorize).and_return(cat_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(alt_summary).and_return(alt_summary_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(alt_bridge).and_return(alt_bridge_dir)
+        allow(Sensemaker::Paths).to receive(:job_directory).with(alt_categorize)
+          .and_return(alt_categorize_dir)
         allow(Sensemaker::Paths).to receive(:job_directory).with(parent).and_return(
           "#{data_folder}/job-#{parent.id}"
         )
 
-        FileUtils.mkdir_p([report_text_dir, bridge_dir, cat_dir])
+        FileUtils.mkdir_p([alt_summary_dir, alt_bridge_dir, alt_categorize_dir])
         File.write(summary_json, "{}")
-        File.write(File.join(report_text_dir, "report_data_with_opinions.json"), "{}")
+        File.write(File.join(alt_summary_dir, "report_data_with_opinions.json"), "{}")
         File.write(bridging_csv, "a,b\n")
         File.write(categorized, "a,b\n")
-        File.write(File.join(cat_dir, "categorized_with_other_filtered.csv"), "a,b\n")
-        File.write(File.join(cat_dir, "categorized_without_other.csv"), "a,b\n")
-        File.write(File.join(cat_dir, "categorized_without_other_filtered.csv"), "a,b\n")
-        File.write(File.join(cat_dir, "categorized_with_other_topic_tree.txt"), "tree")
+        File.write(File.join(alt_categorize_dir, "categorized_with_other_filtered.csv"), "a,b\n")
+        File.write(File.join(alt_categorize_dir, "categorized_without_other.csv"), "a,b\n")
+        File.write(File.join(alt_categorize_dir, "categorized_without_other_filtered.csv"), "a,b\n")
+        File.write(File.join(alt_categorize_dir, "categorized_with_other_topic_tree.txt"), "tree")
 
         paths = Sensemaker::JobArtefacts.new(parent).existing_input_artefact_paths
         expect(paths).to contain_exactly(summary_json, bridging_csv)
@@ -469,6 +506,7 @@ describe Sensemaker::JobArtefacts do
       end
     end
   end
+
 
   describe "#cleanup" do
     include_context "sensemaker paths stubbed"

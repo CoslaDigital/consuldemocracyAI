@@ -75,10 +75,15 @@ describe SensemakerExt::Backend::Python do
 
     describe "#build_command" do
       it "invokes the report-builder CLI with summary, bridging scores, and output file" do
+        conversation = instance_double(Sensemaker::Conversation)
+        allow(job).to receive(:conversation).and_return(conversation)
+        allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
         command = backend.build_command
         expected_bridging = File.join(Sensemaker::Paths.job_directory(bridge_job), "bridging_scores.csv")
         expected_output = File.join(Sensemaker::Paths.job_directory(job), "report.html")
         expected_input_dir = Sensemaker::Paths.job_directory(job)
+        expected_config = job.artefacts.report_config_path
 
         expect(command).to include("node #{report_builder_folder.join("bin/cli.js")}")
         expect(command).to include("inline")
@@ -86,7 +91,7 @@ describe SensemakerExt::Backend::Python do
         expect(command).to include("--summary #{summary_path}")
         expect(command).to include("--output #{expected_output}")
         expect(command).to include("--inputDir #{Shellwords.escape(expected_input_dir)}")
-        expect(command).not_to include("--config")
+        expect(command).to include("--config #{Shellwords.escape(expected_config)}")
         expect(command).not_to include("--adapter")
         expect(command).not_to include("sensemaking-")
         expect(command).not_to include("venv/bin")
@@ -94,25 +99,58 @@ describe SensemakerExt::Backend::Python do
     end
 
     describe "#cli_flags" do
-      it "omits config when run_options config is blank" do
+      it "writes config.json with default title when run_options config is blank" do
         job.update!(run_options: {})
+        conversation = instance_double(Sensemaker::Conversation)
+        allow(job).to receive(:conversation).and_return(conversation)
+        allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
 
-        flags = backend.cli_flags
-        expect(flags).not_to have_key("config")
-        expect(flags["inputDir"]).to eq(Sensemaker::Paths.job_directory(job))
-        expect(backend.build_command).not_to include("--config")
-      end
-
-      it "writes config.json and passes --config when run_options config is present" do
-        config = { "overview_chart" => "topics", "excludedTopics" => ["Other"] }
-        job.update!(run_options: { "config" => config })
-
-        expected_config = File.join(Sensemaker::Paths.job_directory(job), "config.json")
+        expected_config = job.artefacts.report_config_path
         flags = backend.cli_flags
 
         expect(flags["config"]).to eq(expected_config)
         expect(flags["inputDir"]).to eq(Sensemaker::Paths.job_directory(job))
-        expect(File.read(expected_config)).to eq(JSON.pretty_generate(config))
+        expect(JSON.parse(File.read(expected_config))).to eq("title" => "Test Label")
+        expect(backend.build_command).to include("--config #{Shellwords.escape(expected_config)}")
+      end
+
+      it "writes config.json merging run_options and defaulting blank title" do
+        job.update!(
+          run_options: {
+            "config" => {
+              "title" => "",
+              "logo" => "",
+              "excluded_topics" => ["Other"]
+            }
+          }
+        )
+        conversation = instance_double(Sensemaker::Conversation)
+        allow(job).to receive(:conversation).and_return(conversation)
+        allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+        expected_config = job.artefacts.report_config_path
+        flags = backend.cli_flags
+
+        expect(flags["config"]).to eq(expected_config)
+        expect(JSON.parse(File.read(expected_config))).to eq(
+          "title" => "Test Label",
+          "excluded_topics" => ["Other"]
+        )
+      end
+
+      it "writes config.json preserving a custom title" do
+        config = { "excluded_topics" => ["Other"], "title" => "Custom Title" }
+        job.update!(run_options: { "config" => config })
+        conversation = instance_double(Sensemaker::Conversation)
+        allow(job).to receive(:conversation).and_return(conversation)
+        allow(conversation).to receive(:target_label).with(format: :full).and_return("Test Label")
+
+        expected_config = job.artefacts.report_config_path
+        flags = backend.cli_flags
+
+        expect(flags["config"]).to eq(expected_config)
+        expect(flags["inputDir"]).to eq(Sensemaker::Paths.job_directory(job))
+        expect(JSON.parse(File.read(expected_config))).to eq(config)
         expect(backend.build_command).to include("--config #{Shellwords.escape(expected_config)}")
       end
     end

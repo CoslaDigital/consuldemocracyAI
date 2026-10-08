@@ -72,7 +72,11 @@
         </div>
       </details>
 
-      <%= render Admin::Sensemaker::ReportConfigDialogComponent.new(sensemaker_job) %>
+      <% QUICK_PREP.each_key do |logical_name| %>
+        <% quick_action_scripts(logical_name).each do |script| %>
+          <%= render Admin::Sensemaker::ReportConfigDialogComponent.new(sensemaker_job, script: script) %>
+        <% end %>
+      <% end %>
 
       <div class="flex-between">
         <%= link_to t("admin.sensemaker.new.cancel"), admin_sensemaker_jobs_path, class: "" %>
@@ -83,10 +87,44 @@
                        formaction: preview_admin_sensemaker_jobs_path(format: :csv),
                        class: "button", data: { temp_disable: true } %>
 
-          <% QUICK_ACTIONS.each do |logical_name, _config| %>
-            <% label = quick_action_label(logical_name) %>
+          <% QUICK_PREP.each_key do |logical_name| %>
             <% scripts = quick_action_scripts(logical_name) %>
             <% dropdown_id = "sensemaker_#{logical_name}_scripts" %>
+            <% label = quick_prep_label(logical_name) %>
+
+            <% if scripts.many? %>
+              <div class="quick-action">
+                <button type="button" class="button hollow quick-action-toggle"
+                        data-toggle="<%= dropdown_id %>"
+                        aria-controls="<%= dropdown_id %>"
+                        aria-haspopup="true">
+                  <%= label %>
+                </button>
+
+                <div class="dropdown-pane" id="<%= dropdown_id %>" data-dropdown
+                     data-position="bottom" data-alignment="right" data-auto-focus="true">
+                  <% scripts.each do |script| %>
+                    <%= button_tag script_option_label(script),
+                                   type: "button",
+                                   class: "button hollow",
+                                   command: "show-modal",
+                                   commandfor: Admin::Sensemaker::ReportConfigDialogComponent.dialog_id_for(script) %>
+                  <% end %>
+                </div>
+              </div>
+            <% elsif scripts.one? %>
+              <%= button_tag label,
+                             type: "button",
+                             command: "show-modal",
+                             commandfor: Admin::Sensemaker::ReportConfigDialogComponent.dialog_id_for(scripts.first),
+                             class: "button hollow" %>
+            <% end %>
+          <% end %>
+
+          <% QUICK_ACTIONS.each_key do |logical_name| %>
+            <% scripts = quick_action_scripts(logical_name) %>
+            <% dropdown_id = "sensemaker_#{logical_name}_scripts" %>
+            <% label = quick_action_label(logical_name) %>
 
             <% if scripts.many? %>
               <div class="quick-action">
