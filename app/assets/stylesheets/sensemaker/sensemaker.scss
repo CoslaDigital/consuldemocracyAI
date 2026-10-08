@@ -54,6 +54,38 @@
     }
   }
 
+  .sensemaker-report-config-dialog {
+    border: 1px solid $border;
+    border-radius: $button-radius;
+    max-width: 36rem;
+    padding: $line-height;
+    width: calc(100% - 2rem);
+
+    &::backdrop {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .sensemaker-report-config-field {
+      margin-bottom: $line-height;
+    }
+
+    .sensemaker-string-list-row {
+      align-items: center;
+      display: flex;
+      gap: $line-height * 0.5;
+      margin-bottom: $line-height * 0.5;
+
+      input,
+      .button {
+        margin-bottom: 0;
+      }
+    }
+
+    .sensemaker-report-config-actions {
+      margin-top: $line-height;
+    }
+  }
+
   fieldset {
     border: 1px solid $border;
     border-radius: $button-radius;

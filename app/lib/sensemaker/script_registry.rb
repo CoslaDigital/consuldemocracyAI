@@ -94,7 +94,7 @@ module Sensemaker
           default_input_path: ->(job) {
             File.join(Sensemaker::Paths.job_directory(job), "advanced-output")
           },
-          input_suffixes: %w[-topic-stats.json -summary.json -comments-with-scores.json -metadata.json]
+          input_suffixes: %w[-topic-stats.json -summary.json -comments-with-scores.json]
         }
       }
     }.freeze
