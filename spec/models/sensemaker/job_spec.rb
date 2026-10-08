@@ -34,10 +34,10 @@ describe Sensemaker::Job do
     end
 
     it "persists a JSON object" do
-      job.update!(run_options: { "reportTitle" => "Custom Jury Report" })
+      job.update!(run_options: { "config" => { "title" => "Custom Jury Report" }})
 
       expect(job.reload.run_options).to eq(
-        "reportTitle" => "Custom Jury Report"
+        "config" => { "title" => "Custom Jury Report" }
       )
     end
   end

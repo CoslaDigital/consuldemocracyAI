@@ -43,5 +43,9 @@ module Sensemaker
         Rails.root.join("node_modules/@cosla/sensemaking-report-ui")
       end
     end
+
+    def self.report_ui_config_schema
+      report_ui_folder.join("schemas/config.v1.json")
+    end
   end
 end

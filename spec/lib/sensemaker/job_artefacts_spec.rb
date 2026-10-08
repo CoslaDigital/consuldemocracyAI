@@ -78,6 +78,29 @@ describe Sensemaker::JobArtefacts do
     end
   end
 
+  describe "#report_config_path" do
+    include_context "sensemaker paths stubbed"
+
+    it "returns config.json under the job directory" do
+      expect(artefacts.report_config_path).to eq("#{job_dir}/config.json")
+    end
+  end
+
+  describe "#write_report_config" do
+    include_context "sensemaker paths stubbed"
+
+    it "creates the directory, writes pretty JSON, and returns the path" do
+      config = { "title" => "Test Label", "excluded_topics" => ["Other"] }
+      expect(FileUtils).to receive(:mkdir_p).with(job_dir)
+      expect(File).to receive(:write).with(
+        "#{job_dir}/config.json",
+        JSON.pretty_generate(config)
+      )
+
+      expect(artefacts.write_report_config(config)).to eq("#{job_dir}/config.json")
+    end
+  end
+
   describe "#default_output_path" do
     include_context "sensemaker paths stubbed"
 
@@ -315,22 +338,8 @@ describe Sensemaker::JobArtefacts do
       expect(artefacts.input_artefact_paths).to eq([
         "#{job[:input_file]}-topic-stats.json",
         "#{job[:input_file]}-summary.json",
-        "#{job[:input_file]}-comments-with-scores.json",
-        "#{job[:input_file]}-metadata.json"
+        "#{job[:input_file]}-comments-with-scores.json"
       ])
-    end
-  end
-
-  describe "#metadata_path" do
-    it "returns nil when input_path is blank" do
-      job.script = "health_check_runner.ts"
-      job[:input_file] = nil
-      expect(artefacts.metadata_path).to be(nil)
-    end
-
-    it "returns the metadata json path derived from input_path" do
-      job[:input_file] = "/tmp/output"
-      expect(artefacts.metadata_path).to eq("/tmp/output-metadata.json")
     end
   end
 
@@ -381,12 +390,10 @@ describe Sensemaker::JobArtefacts do
       existing = "#{job[:input_file]}-summary.json"
       missing_1 = "#{job[:input_file]}-topic-stats.json"
       missing_2 = "#{job[:input_file]}-comments-with-scores.json"
-      missing_3 = "#{job[:input_file]}-metadata.json"
 
       allow(File).to receive(:exist?).with(existing).and_return(true)
       allow(File).to receive(:exist?).with(missing_1).and_return(false)
       allow(File).to receive(:exist?).with(missing_2).and_return(false)
-      allow(File).to receive(:exist?).with(missing_3).and_return(false)
 
       expect(artefacts.existing_input_artefact_paths).to eq([existing])
     end
