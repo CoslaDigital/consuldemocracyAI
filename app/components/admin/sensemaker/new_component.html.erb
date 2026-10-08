@@ -72,7 +72,7 @@
         </div>
       </details>
 
-      <%= render Admin::Sensemaker::ReportConfigDialogComponent.new %>
+      <%= render Admin::Sensemaker::ReportConfigDialogComponent.new(sensemaker_job) %>
 
       <div class="flex-between">
         <%= link_to t("admin.sensemaker.new.cancel"), admin_sensemaker_jobs_path, class: "" %>

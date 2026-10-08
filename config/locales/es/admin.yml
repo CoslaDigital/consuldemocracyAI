@@ -1861,6 +1861,7 @@ es:
         prepare_report: "Preparar informe"
         generate_report: "Generar informe"
         report_config_title: "Configuración del informe"
+        report_config_hint: "Todos los campos son opcionales. Déjalos en blanco para usar los valores predeterminados."
         report_config_add: "Añadir"
         report_config_remove: "Eliminar"
         advanced_options: "Opciones avanzadas"

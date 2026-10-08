@@ -1,5 +1,6 @@
 <dialog id="report-config-dialog" class="sensemaker-report-config-dialog">
   <h4><%= t("admin.sensemaker.new.report_config_title") %></h4>
+  <p class="help-text small"><%= t("admin.sensemaker.new.report_config_hint") %></p>
 
   <% properties.each do |key, definition| %>
     <% next unless string_field?(definition) || string_array_field?(definition) %>
@@ -13,7 +14,7 @@
           <p class="help-text"><%= field_description(key, definition) %></p>
         <% end %>
         <%= text_field_tag "sensemaker_job[run_options][config][#{key}]",
-                           nil,
+                           field_value(key),
                            id: "sensemaker_job_run_options_config_#{key}" %>
       <% else %>
         <fieldset data-sensemaker-string-list>

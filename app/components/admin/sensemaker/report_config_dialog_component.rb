@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 class Admin::Sensemaker::ReportConfigDialogComponent < ApplicationComponent
+  attr_reader :sensemaker_job
+
+  def initialize(sensemaker_job)
+    @sensemaker_job = sensemaker_job
+  end
+
   def properties
     @properties ||= JSON.parse(
       File.read(Sensemaker::Paths.report_ui_config_schema)
@@ -23,5 +29,15 @@ class Admin::Sensemaker::ReportConfigDialogComponent < ApplicationComponent
   def field_description(key, definition)
     t("admin.sensemaker.report_config.fields.#{key}.hint",
       default: definition["description"].presence || "").presence
+  end
+
+  def field_value(key)
+    return default_report_title if key == "title"
+
+    nil
+  end
+
+  def default_report_title
+    sensemaker_job.conversation.target_label(format: :full)
   end
 end
