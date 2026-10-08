@@ -21,7 +21,17 @@
       forms.on("click", busySelector, this.applyBusyState);
 
       this.initializeStringLists(forms);
+      this.initializeReportConfigDialogs(forms);
     },
+
+    initializeReportConfigDialogs: function(forms) {
+      forms.on("click", ".sensemaker-report-config-dialog button[name='quick_action']", function() {
+        var activeDialog = $(this).closest(".sensemaker-report-config-dialog");
+        $(".sensemaker-report-config-dialog").not(activeDialog).find(":input").prop("disabled", true);
+        activeDialog.find(":input").prop("disabled", false);
+      });
+    },
+
 
     handleTempDisable: function() {
       App.AdminSensemakerScripts.applyBusyState.call(this, { currentTarget: this });

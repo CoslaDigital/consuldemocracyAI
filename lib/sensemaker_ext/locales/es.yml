@@ -1,6 +1,11 @@
 es:
   admin:
     sensemaker:
+      report_config:
+        fields:
+          excluded_opinions:
+            label: "Opiniones excluidas"
+            hint: "Nombres de opiniones a omitir (coincidencia exacta)"
       scripts:
         health_check:
           title: "(Sensemaker v2) Verificacion de salud"

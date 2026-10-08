@@ -88,6 +88,7 @@ module Sensemaker
         prep_steps: [ADVANCED],
         i18n_key: "sensemaking_report_ui",
         output_flag: :output_file,
+        config_schema_path: -> { Sensemaker::Paths.report_ui_config_schema },
         artefact_config: {
           output_basename: ->(_job) { "report.html" },
           output_suffixes: [],
@@ -137,6 +138,11 @@ module Sensemaker
 
     def self.artefact_config(script)
       config_for(script)&.fetch(:artefact_config)
+    end
+
+    def self.config_schema_path(script)
+      path = config_for(script)&.[](:config_schema_path)
+      path.respond_to?(:call) ? path.call : path
     end
 
     def self.scripts_for_logical_name(name)

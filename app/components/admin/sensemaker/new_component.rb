@@ -4,22 +4,24 @@ class Admin::Sensemaker::NewComponent < ApplicationComponent
   attr_reader :sensemaker_job
 
   QUICK_ACTIONS = {
-    summary: { default_backend: :node },
-    report: { default_backend: :node }
+    summary: { default_backend: :node, label_key: "generate_summary" }
+  }.freeze
+
+  QUICK_PREP = {
+    report: { default_backend: :node, label_key: "prepare_report" }
   }.freeze
 
   def quick_action_label(logical_name)
-    case logical_name
-    when :summary
-      I18n.t("admin.sensemaker.new.generate_summary")
-    when :report
-      I18n.t("admin.sensemaker.new.generate_report")
-    end
+    I18n.t("admin.sensemaker.new.#{QUICK_ACTIONS.fetch(logical_name)[:label_key]}")
+  end
+
+  def quick_prep_label(logical_name)
+    I18n.t("admin.sensemaker.new.#{QUICK_PREP.fetch(logical_name)[:label_key]}")
   end
 
   def quick_action_scripts(logical_name)
     scripts = Sensemaker::ScriptRegistry.scripts_for_logical_name(logical_name)
-    preferred = QUICK_ACTIONS.fetch(logical_name)[:default_backend]
+    preferred = quick_config_for(logical_name).fetch(:default_backend)
     default = scripts.find { |script| Sensemaker::ScriptRegistry.backend_for(script) == preferred }
 
     ([default] + scripts).compact.uniq
@@ -53,4 +55,10 @@ class Admin::Sensemaker::NewComponent < ApplicationComponent
   def title
     t("admin.sensemaker.new.title")
   end
+
+  private
+
+    def quick_config_for(logical_name)
+      QUICK_ACTIONS[logical_name] || QUICK_PREP.fetch(logical_name)
+    end
 end

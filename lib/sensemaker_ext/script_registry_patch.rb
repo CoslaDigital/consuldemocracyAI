@@ -162,6 +162,7 @@ module SensemakerExt
         prep_steps: ["report_text"],
         i18n_key: "report_ui",
         output_flag: :output_file,
+        config_schema_path: -> { SensemakerExt::Paths.report_builder_config_schema },
         artefact_config: {
           output_basename: ->(_job) { "report.html" },
           output_suffixes: [],
@@ -217,6 +218,14 @@ module SensemakerExt
 
     def artefact_config(script)
       python_config_for(script)&.fetch(:artefact_config) || super
+    end
+
+    def config_schema_path(script)
+      path = python_config_for(script)&.[](:config_schema_path)
+      return path.call if path.respond_to?(:call)
+      return path if path
+
+      super
     end
 
     def scripts_for_logical_name(name)
