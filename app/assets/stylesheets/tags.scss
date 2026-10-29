@@ -6,6 +6,46 @@
 
   @include amsify-suggestags-input-area;
 
+  .taggable-fields-heading-with-suggest {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: $line-height / 3;
+    margin-bottom: $line-height / 4;
+
+    label {
+      margin-bottom: 0;
+      font-weight: bold;
+    }
+
+    .js-suggest-classification {
+      margin-bottom: 0;
+    }
+  }
+
+  .js-suggest-classification.is-loading {
+    @include has-fa-icon(spinner, solid);
+
+    &::before {
+      animation: fa-spin 2s infinite linear;
+    }
+  }
+
+  .js-classification-suggestions-tags {
+    margin-top: $line-height / 2;
+
+    .classification-suggestion-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $line-height / 4;
+      margin-bottom: $line-height / 3;
+    }
+
+    .classification-suggestion-button {
+      margin: 0;
+    }
+  }
+
   input.js-tag-category {
     @include element-invisible;
 
