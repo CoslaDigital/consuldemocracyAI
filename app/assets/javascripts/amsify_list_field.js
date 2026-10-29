@@ -98,6 +98,8 @@
         );
       }
 
+      $input.data("amsifyListField", amsify);
+
       return amsify;
     },
     data_attribute_name: function(camel_case) {
