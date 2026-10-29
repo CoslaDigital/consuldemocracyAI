@@ -150,6 +150,92 @@ describe Taggable::FieldsComponent do
     expect(page.find("input.js-tag-list")[:value]).to eq("\"Culture, Leisure and Tourism\"")
   end
 
+  describe "AI classification suggestions" do
+    before do
+      Setting["llm.provider"] = nil
+      Setting["llm.model"] = nil
+      Setting["llm.use_ai_classification_suggestions"] = nil
+    end
+
+    it "does not render the suggest button by default" do
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form"
+      )
+
+      render_inline component
+
+      expect(page).not_to have_css "button.js-suggest-classification"
+    end
+
+    it "does not render the suggest button when the feature is disabled" do
+      Setting["llm.provider"] = "OpenAI"
+      Setting["llm.model"] = "gpt-4o"
+      Setting["llm.use_ai_classification_suggestions"] = false
+
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: true
+      )
+
+      render_inline component
+
+      expect(page).not_to have_css "button.js-suggest-classification"
+    end
+
+    it "renders the suggest button when enabled and LLM is configured" do
+      Setting["llm.provider"] = "OpenAI"
+      Setting["llm.model"] = "gpt-4o"
+      Setting["llm.use_ai_classification_suggestions"] = true
+
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: true
+      )
+
+      render_inline component
+
+      expect(page).to have_css "button.js-suggest-classification[data-resource-type='Proposal']"
+      expect(page).to have_button "Suggest tags"
+    end
+
+    it "renders a hidden tags suggestions callout when enabled" do
+      Setting["llm.provider"] = "OpenAI"
+      Setting["llm.model"] = "gpt-4o"
+      Setting["llm.use_ai_classification_suggestions"] = true
+
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: true
+      )
+
+      render_inline component
+
+      expect(page).to have_css ".js-classification-suggestions-tags.help-section.callout.primary.hide"
+      expect(page).to have_css ".js-classification-suggestions-tags .js-classification-suggestions-body"
+    end
+
+    it "does not render the tags suggestions callout when disabled" do
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: true
+      )
+
+      render_inline component
+
+      expect(page).not_to have_css ".js-classification-suggestions-tags"
+    end
+  end
+
   it "wraps fields in a js-taggable-fields root" do
     component = Taggable::FieldsComponent.new(
       form,

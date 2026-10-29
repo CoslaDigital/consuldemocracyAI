@@ -40,13 +40,13 @@
     manage_add_help: function(amsify_suggestags, value) {
       var title = amsify_suggestags.getItem(value).title;
       var html = '<li data-id="' + value + '">' + "<strong>" + value + "</strong> " + title + "</li>";
-      $(".sdg-related-list-selector .help-section").removeClass("hide");
+      $(".sdg-related-list-selector .js-sdg-selected-help").removeClass("hide");
       $(".sdg-related-list-selector .selected-info").append(html);
     },
     manage_remove_help: function(amsify_suggestags, value) {
       $('[data-id="' + value + '"]').remove();
       if ($(amsify_suggestags.selector).val() === "") {
-        $(".sdg-related-list-selector .help-section").addClass("hide");
+        $(".sdg-related-list-selector .js-sdg-selected-help").addClass("hide");
       }
     }
   };

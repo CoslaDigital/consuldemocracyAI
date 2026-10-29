@@ -42,6 +42,7 @@
 //= require jquery.amsify.suggestags
 //= require amsify_list_field
 //= require tags
+//= require classification_suggestions
 //= require participation_not_allowed
 //= require advanced_search
 //= require registration_form
@@ -102,6 +103,7 @@ var initialize_modules = function() {
   App.Comments.initialize();
   App.ParticipationNotAllowed.initialize();
   App.Tags.initialize();
+  App.ClassificationSuggestions.initialize();
   App.FoundationExtras.initialize();
   App.LocationChanger.initialize();
   App.CheckAllNone.initialize();

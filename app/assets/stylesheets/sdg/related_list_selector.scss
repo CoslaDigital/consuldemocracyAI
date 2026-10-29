@@ -70,4 +70,19 @@
   h3 {
     @include header-font-size(h4);
   }
+
+  .js-classification-suggestions-sdgs {
+    margin-bottom: $line-height / 2;
+
+    .classification-suggestion-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $line-height / 4;
+      margin-bottom: $line-height / 3;
+    }
+
+    .classification-suggestion-button {
+      margin: 0;
+    }
+  }
 }
