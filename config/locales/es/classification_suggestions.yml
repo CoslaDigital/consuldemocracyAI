@@ -4,6 +4,7 @@ es:
     tags_title: Categorías y etiquetas sugeridas que se alinean con la propuesta
     sdgs_title: ODS y metas sugeridos que se alinean con la propuesta
     accept_all: Aceptar todas
+    close: Cerrar
     loading: Cargando…
     empty: No se encontraron sugerencias.
     error: Algo salió mal. Por favor, inténtalo de nuevo.
