@@ -33,16 +33,36 @@
 
   .js-classification-suggestions-tags {
     margin-top: $line-height / 2;
+    position: relative;
+
+    .js-classification-dismiss {
+      position: absolute;
+      color: $color-info;
+      right: $line-height / 2;
+      top: $line-height / 2;
+    }
+
+    h3 {
+      padding-right: $line-height;
+    }
 
     .classification-suggestion-list {
       display: flex;
       flex-wrap: wrap;
       gap: $line-height / 4;
-      margin-bottom: $line-height / 3;
+      margin-bottom: $line-height / 2;
     }
 
     .classification-suggestion-button {
+      @include hollow-button;
+      font-size: 0.75rem;
       margin: 0;
+    }
+
+    .classification-suggestion-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $line-height / 3;
     }
   }
 

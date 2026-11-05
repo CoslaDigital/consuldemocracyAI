@@ -65,16 +65,60 @@
 
   .js-classification-suggestions-sdgs {
     margin-bottom: $line-height / 2;
+    position: relative;
+
+    .js-classification-dismiss {
+      position: absolute;
+      color: $color-info;
+      right: $line-height / 2;
+      top: $line-height / 2;
+    }
+
+    .js-classification-suggestions-body h3 {
+      padding-right: $line-height;
+    }
 
     .classification-suggestion-list {
       display: flex;
       flex-wrap: wrap;
-      gap: $line-height / 4;
-      margin-bottom: $line-height / 3;
+      margin-bottom: $line-height / 2;
     }
 
     .classification-suggestion-button {
+      @include hollow-button;
+      display: block;
+      text-align: left;
+      border: none;
       margin: 0;
+      width: 100%;
+      line-height: 1;
+      border-bottom: 1px solid $color-info;
+      position: relative;
+      padding-right: 1.5em;
+    }
+
+    .classification-suggestion-button:hover,
+    .classification-suggestion-button:focus {
+      background-color: rgba(255, 255, 255, 0.75);
+      &:after {
+        top: 50%;
+        transform: translateY(-50%);
+        content: "»";
+        right: 0.5em;
+        position: absolute;
+        text-align: center;
+        font-size: 150%;
+      }
+    }
+
+    .classification-suggestion-button:last-child {
+      border-bottom: none;
+    }
+
+    .classification-suggestion-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $line-height / 3;
     }
   }
 }

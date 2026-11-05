@@ -57,6 +57,8 @@ describe SDG::RelatedListSelectorComponent do
 
       expect(page).to have_css ".js-classification-suggestions-sdgs.help-section.callout.primary.hide"
       expect(page).to have_css ".js-classification-suggestions-sdgs .js-classification-suggestions-body"
+      expect(page).to have_css ".js-classification-suggestions-sdgs[data-close]"
+      expect(page).to have_css ".js-classification-suggestions-sdgs template.js-classification-suggestion-template", visible: :all
       expect(page).to have_css ".js-sdg-selected-help"
     end
   end
