@@ -20,6 +20,14 @@
           App.ClassificationSuggestions.applySuggestion($(this));
         });
       });
+
+      $("body").on("click", ".js-classification-dismiss", function() {
+        var $panel = $(this).closest(
+          ".js-classification-suggestions-tags, .js-classification-suggestions-sdgs"
+        );
+
+        App.ClassificationSuggestions.dismissPanel($panel);
+      });
     },
     requestSuggestions: function($button) {
       var $form = $button.closest("form");
@@ -71,7 +79,7 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text($panel.data("loading"));
+      App.ClassificationSuggestions.resetPanelBody($panel, $panel.data("loading"));
     },
     showError: function($panel, message) {
       if (!$panel.length) {
@@ -79,7 +87,8 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text(
+      App.ClassificationSuggestions.resetPanelBody(
+        $panel,
         message || $panel.data("error")
       );
     },
@@ -89,7 +98,14 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text($panel.data("empty"));
+      App.ClassificationSuggestions.resetPanelBody($panel, $panel.data("empty"));
+    },
+    resetPanelBody: function($panel, message) {
+      var $body = $panel.find(".js-classification-suggestions-body");
+
+      $body.empty();
+      $body.append(App.ClassificationSuggestions.closeButton($panel));
+      $body.append($("<p>").text(message));
     },
     renderResponse: function($form, data) {
       var $tagsPanel = $form.find(".js-classification-suggestions-tags");
@@ -133,9 +149,10 @@
       $body = $panel.find(".js-classification-suggestions-body");
       $panel.removeClass("hide");
       $body.empty();
+      $body.append(App.ClassificationSuggestions.closeButton($panel));
       $body.append($("<h3>").text($panel.data("title")));
-      $body.append(App.ClassificationSuggestions.suggestionButtons(items));
-      $body.append(App.ClassificationSuggestions.acceptAllButton($panel.data("accept-all")));
+      $body.append(App.ClassificationSuggestions.suggestionButtons($panel, items));
+      $body.append(App.ClassificationSuggestions.panelActions($panel));
     },
     renderSdgsPanel: function($form, $panel, sdgs) {
       var $body;
@@ -162,31 +179,49 @@
       $body = $panel.find(".js-classification-suggestions-body");
       $panel.removeClass("hide");
       $body.empty();
+      $body.append(App.ClassificationSuggestions.closeButton($panel));
       $body.append($("<h3>").text($panel.data("title")));
-      $body.append(App.ClassificationSuggestions.suggestionButtons(items));
-      $body.append(App.ClassificationSuggestions.acceptAllButton($panel.data("accept-all")));
+      $body.append(App.ClassificationSuggestions.suggestionButtons($panel, items));
+      $body.append(App.ClassificationSuggestions.panelActions($panel));
     },
-    suggestionButtons: function(items) {
+    suggestionButtons: function($panel, items) {
       var $list = $("<div>").addClass("classification-suggestion-list");
+      var template = $panel.find(".js-classification-suggestion-template").get(0);
 
       items.forEach(function(item) {
-        var $button = $("<button>")
-          .attr("type", "button")
-          .addClass("button hollow classification-suggestion-button js-classification-suggestion")
-          .attr("data-suggestion-type", item.type)
-          .attr("data-value", item.value)
-          .text(item.label + " »");
-
+        var $button = $(document.importNode(template.content, true).children);
+        $button.attr("data-suggestion-type", item.type);
+        $button.attr("data-value", item.value);
+        $button.find(".js-classification-suggestion-label").text(item.label);
         $list.append($button);
       });
 
       return $list;
     },
-    acceptAllButton: function(label) {
+    panelActions: function($panel) {
+      return $("<div>")
+        .addClass("classification-suggestion-actions")
+        .append(
+          $("<button>")
+            .attr("type", "button")
+            .addClass("button js-classification-accept-all")
+            .text($panel.data("accept-all"))
+        );
+    },
+    closeButton: function($panel) {
       return $("<button>")
         .attr("type", "button")
-        .addClass("button js-classification-accept-all")
-        .text(label);
+        .attr("aria-label", $panel.data("close"))
+        .addClass("close-button js-classification-dismiss")
+        .html("&times;");
+    },
+    dismissPanel: function($panel) {
+      if (!$panel.length) {
+        return;
+      }
+
+      $panel.addClass("hide");
+      $panel.find(".js-classification-suggestions-body").empty();
     },
     sdgSuggestions: function($form) {
       var raw = $form.find(".sdg-related-list-selector .input").data("suggestions-list");
@@ -289,8 +324,7 @@
       }
 
       if ($panel.find(".js-classification-suggestion").length === 0) {
-        $panel.addClass("hide");
-        $panel.find(".js-classification-suggestions-body").empty();
+        App.ClassificationSuggestions.dismissPanel($panel);
       }
     }
   };

@@ -145,4 +145,47 @@ describe Taggable::FieldsComponent do
 
     expect(page).to have_css ".taggable-fields input.js-tag-list"
   end
+
+  describe "classification suggestions" do
+    before do
+      Setting["llm.provider"] = nil
+      Setting["llm.model"] = nil
+      Setting["llm.use_ai_classification_suggestions"] = nil
+    end
+
+    it "does not render suggestions UI when ai_suggestions is disabled" do
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: false
+      )
+
+      render_inline component
+
+      expect(page).not_to have_css ".js-suggest-classification"
+      expect(page).not_to have_css ".js-classification-suggestions-tags"
+    end
+
+    it "renders suggest button, callout, and suggestion template when enabled" do
+      Setting["llm.provider"] = "OpenAI"
+      Setting["llm.model"] = "gpt-4o"
+      Setting["llm.use_ai_classification_suggestions"] = true
+
+      component = Taggable::FieldsComponent.new(
+        form,
+        categories: [],
+        i18n_namespace: "proposals.form",
+        ai_suggestions: true
+      )
+
+      render_inline component
+
+      expect(page).to have_css "button.js-suggest-classification"
+      expect(page).to have_css ".js-classification-suggestions-tags.help-section.callout.primary.hide"
+      expect(page).to have_css ".js-classification-suggestions-tags .js-classification-suggestions-body"
+      expect(page).to have_css ".js-classification-suggestions-tags[data-close]"
+      expect(page).to have_css ".js-classification-suggestions-tags template.js-classification-suggestion-template", visible: :all
+    end
+  end
 end

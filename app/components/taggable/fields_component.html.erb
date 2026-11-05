@@ -3,7 +3,7 @@
     <%= form.label :tag_list, tags_label, class: ("h4" if show_ai_suggestions?) %>
     <% if show_ai_suggestions? %>
       <button type="button"
-              class="button hollow js-suggest-classification"
+              class="button small hollow js-suggest-classification"
               data-resource-type="<%= suggest_button_data[:resource_type] %>"
               <% if suggest_button_data[:resource_id] %>
                 data-resource-id="<%= suggest_button_data[:resource_id] %>"
@@ -44,10 +44,12 @@
          aria-label="<%= t("classification_suggestions.tags_region") %>"
          data-title="<%= t("classification_suggestions.tags_title") %>"
          data-accept-all="<%= t("classification_suggestions.accept_all") %>"
+         data-close="<%= t("classification_suggestions.close") %>"
          data-loading="<%= t("classification_suggestions.loading") %>"
          data-empty="<%= t("classification_suggestions.empty") %>"
          data-error="<%= t("classification_suggestions.error") %>">
       <div class="js-classification-suggestions-body"></div>
+      <%= render "shared/classification_suggestion_template" %>
     </div>
   <% end %>
 </div>
