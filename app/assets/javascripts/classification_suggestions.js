@@ -50,13 +50,13 @@
         return item.name !== "_method";
       });
       params.push({ name: "resource_type", value: resourceType });
-      params.push({ name: "max_suggestions", value: 6 });
 
       $.ajax({
         url: "/classification_suggestions",
         type: "POST",
         data: $.param(params),
         dataType: "json",
+        timeout: 50000,
         success: function(data) {
           App.ClassificationSuggestions.renderResponse($form, data);
         },
@@ -147,11 +147,15 @@
         return;
       }
 
-      sdgs.forEach(function(code) {
+      sdgs.forEach(function(sdg) {
+        var code = typeof sdg === "object" && sdg !== null ? sdg.code : sdg;
+        var reason = typeof sdg === "object" && sdg !== null ? sdg.reason : null;
+
         items.push({
           type: "sdg",
           value: String(code),
-          label: App.ClassificationSuggestions.sdgLabel(suggestions, code)
+          label: App.ClassificationSuggestions.sdgLabel(suggestions, code),
+          title: reason
         });
       });
 
@@ -181,6 +185,9 @@
         var $button = $(document.importNode(template.content, true).children);
         $button.attr("data-suggestion-type", item.type);
         $button.attr("data-value", item.value);
+        if (item.title) {
+          $button.attr("title", item.title);
+        }
         $button.find(".js-classification-suggestion-label").text(item.label);
         $list.append($button);
       });
