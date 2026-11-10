@@ -14,3 +14,5 @@ es:
       messages:
         llm_not_configured: El LLM no está configurado correctamente. Por favor, contacta con un administrador.
         rate_limit_exceeded: Espera unos minutos antes de generar nuevas sugerencias.
+        generic: Algo salió mal al generar sugerencias. Por favor, inténtalo de nuevo.
+        blank_draft: Añade un título, resumen o descripción antes de solicitar sugerencias.

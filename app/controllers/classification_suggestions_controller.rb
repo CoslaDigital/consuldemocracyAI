@@ -13,7 +13,10 @@ class ClassificationSuggestionsController < ApplicationController
       title: draft_params[:title],
       description: draft_params[:description],
       summary: draft_params[:summary],
-      max_suggestions: params[:max_suggestions]
+      selected_tags: selected_tags,
+      selected_sdgs: selected_sdgs,
+      locale: I18n.locale,
+      resource_type: params[:resource_type]
     )
 
     render json: @suggestions
@@ -32,14 +35,25 @@ class ClassificationSuggestionsController < ApplicationController
       @draft_params ||= extract_draft_params
     end
 
+    def resource_params
+      @resource_params ||= params.require(params[:resource_type].parameterize.underscore)
+    end
+
     def extract_draft_params
-      resource = params.require(params[:resource_type].parameterize.underscore)
-      translation = Array(resource[:translations_attributes]&.values).first
+      translation = Array(resource_params[:translations_attributes]&.values).first
 
       {
-        title: translation&.dig(:title) || resource[:title],
-        description: translation&.dig(:description) || resource[:description],
-        summary: translation&.dig(:summary) || resource[:summary]
+        title: translation&.dig(:title) || resource_params[:title],
+        description: translation&.dig(:description) || resource_params[:description],
+        summary: translation&.dig(:summary) || resource_params[:summary]
       }
+    end
+
+    def selected_tags
+      ActsAsTaggableOn::TagList.new.add(resource_params[:tag_list].to_s, parse: true).to_a
+    end
+
+    def selected_sdgs
+      resource_params[:related_sdg_list].to_s.split(",").map(&:strip).compact_blank
     end
 end

@@ -54,13 +54,13 @@
         return item.name !== "_method";
       });
       params.push({ name: "resource_type", value: resourceType });
-      params.push({ name: "max_suggestions", value: 6 });
 
       $.ajax({
         url: "/classification_suggestions",
         type: "POST",
         data: $.param(params),
         dataType: "json",
+        timeout: 50000,
         success: function(data) {
           App.ClassificationSuggestions.renderResponse($form, data);
         },
@@ -159,7 +159,9 @@
         return;
       }
 
-      sdgs.forEach(function(code) {
+      sdgs.forEach(function(sdg) {
+        var code = typeof sdg === "object" && sdg !== null ? sdg.code : sdg;
+        var reason = typeof sdg === "object" && sdg !== null ? sdg.reason : null;
         var parts = App.ClassificationSuggestions.sdgLabelParts(suggestions, code);
 
         items.push({
@@ -167,7 +169,8 @@
           value: String(code),
           label: parts.label,
           code: parts.code,
-          title: parts.title
+          sdgTitle: parts.title,
+          reason: reason
         });
       });
 
@@ -204,17 +207,17 @@
 
         $button.attr("data-suggestion-type", item.type);
         $button.attr("data-value", item.value);
-        $button.attr("title", item.label);
         $button.attr("aria-label", item.label);
+        $button.attr("title", item.reason || item.label);
 
-        if (item.type === "sdg" && item.code && item.title) {
+        if (item.type === "sdg" && item.code && item.sdgTitle) {
           $label.empty();
           $label.append(
             $("<strong>").addClass("classification-suggestion-code").text(item.code)
           );
           $label.append(document.createTextNode(" "));
           $label.append(
-            $("<span>").addClass("classification-suggestion-text").text(item.title)
+            $("<span>").addClass("classification-suggestion-text").text(item.sdgTitle)
           );
         } else {
           $label.text(item.label);

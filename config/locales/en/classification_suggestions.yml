@@ -14,3 +14,5 @@ en:
       messages:
         llm_not_configured: LLM is not properly configured. Please contact an administrator.
         rate_limit_exceeded: Please wait a few minutes before generating new suggestions.
+        generic: Something went wrong generating suggestions. Please try again.
+        blank_draft: Please add a title, summary or description before requesting suggestions.

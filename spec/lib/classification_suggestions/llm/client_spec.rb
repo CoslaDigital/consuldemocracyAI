@@ -1,90 +1,164 @@
 require "rails_helper"
 
 describe ClassificationSuggestions::Llm::Client do
-  let(:title) { "More green spaces" }
-  let(:description) { "We need parks and trees in the city centre." }
+  let(:chat) { double("chat") }
+  let(:model_info) { double("model", supports?: false) }
+  let(:llm_reply) do
+    {
+      "categories" => ["Culture"],
+      "tags" => ["parks"],
+      "sdgs" => [{ "code" => "11", "reason" => "Urban greening" }]
+    }
+  end
 
   before do
     Setting["llm.provider"] = "OpenAI"
     Setting["llm.model"] = "gpt-4o"
     Setting["llm.use_ai_classification_suggestions"] = true
+    Setting["feature.sdg"] = true
+    Setting["sdg.process.proposals"] = true
+
+    create(:tag, :category, name: "Culture")
+
+    allow(Llm::Config).to receive(:context).and_return(double(config: RubyLLM::Configuration.new))
+    allow(RubyLLM::Context).to receive(:new).and_return(double(chat: chat))
+    allow(RubyLLM.models).to receive(:find).and_return(model_info)
+    allow(chat).to receive(:with_instructions).and_return(chat)
   end
 
-  describe ".call" do
-    it "returns a response with sampled categories, tags, and sdgs" do
-      create(:tag, :category, name: "Culture")
-      create(:tag, :category, name: "Health")
-      goal_codes = SDG::Goal.pluck(:code).map(&:to_s)
-      target_codes = SDG::Target.pluck(:code).map(&:to_s)
-      available_sdg_codes = goal_codes + target_codes
+  def suggest(**args)
+    described_class.call(title: "More green spaces", description: "Parks and trees in the centre.", **args)
+  end
 
-      result = ClassificationSuggestions::Llm::Client.call(
-        title: title,
-        description: description,
-        max_suggestions: 6
+  def stub_llm_reply(payload)
+    allow(chat).to receive(:ask).and_return(double(content: payload))
+  end
+
+  def stub_structured_output_support
+    allow(model_info).to receive(:supports?).with(:structured_output).and_return(true)
+    allow(chat).to receive(:with_schema).and_return(chat)
+  end
+
+  describe "suggestions" do
+    it "returns normalized suggestions from a plain JSON reply" do
+      stub_llm_reply(llm_reply.to_json)
+
+      result = suggest
+
+      expect(result.as_json).to eq(
+        categories: ["Culture"],
+        tags: ["parks"],
+        sdgs: [{ "code" => "11", "reason" => "Urban greening" }],
+        errors: []
+      )
+      expect(chat).to have_received(:ask).once
+    end
+
+    it "requests structured output when the model supports it" do
+      stub_structured_output_support
+      stub_llm_reply(llm_reply)
+
+      result = suggest
+
+      expect(result.categories).to eq(["Culture"])
+      expect(chat).to have_received(:with_schema).with(ClassificationSuggestions::Schemas::WithSdgs)
+    end
+
+    it "uses the schema without SDGs when the SDG process is disabled" do
+      Setting["sdg.process.proposals"] = false
+      stub_structured_output_support
+      stub_llm_reply(llm_reply.except("sdgs"))
+
+      result = suggest
+
+      expect(result.sdgs).to eq([])
+      expect(chat).to have_received(:with_schema).with(ClassificationSuggestions::Schemas::WithoutSdgs)
+    end
+
+    it "does not suggest tags or SDGs that are already selected" do
+      stub_llm_reply(
+        {
+          "categories" => ["Culture"],
+          "tags" => ["parks", "trees"],
+          "sdgs" => [{ "code" => "11", "reason" => "Cities" }, { "code" => "3", "reason" => "Health" }]
+        }.to_json
       )
 
-      expect(result).to be_a(ClassificationSuggestions::Llm::Client::Response)
-      expect(result.errors).to be_empty
-      expect(result.categories).to all(be_in(%w[Culture Health]))
-      expect(result.categories.size).to be <= 2
-      expect(result.tags).to eq([])
-      expect(result.sdgs).to all(be_in(available_sdg_codes))
-      expect(result.sdgs.size).to be <= 6
-      expect(result.sdgs).to be_present
+      result = suggest(selected_tags: ["Culture", "parks"], selected_sdgs: ["11"])
+
+      expect(result.categories).to eq([])
+      expect(result.tags).to eq(["trees"])
+      expect(result.sdgs).to eq([{ "code" => "3", "reason" => "Health" }])
     end
+  end
 
-    it "clamps max_suggestions to at most 6" do
-      create_list(:tag, 8, :category)
+  describe "skipping the LLM" do
+    it "returns an error when the draft is blank" do
+      result = suggest(title: "", description: "", summary: "")
 
-      result = ClassificationSuggestions::Llm::Client.call(
-        title: title,
-        description: description,
-        max_suggestions: 99
+      expect(result.as_json).to eq(
+        categories: [], tags: [], sdgs: [],
+        errors: ["Please add a title, summary or description before requesting suggestions."]
       )
-
-      expect(result.categories.size).to be <= 6
+      expect(RubyLLM::Context).not_to have_received(:new)
     end
 
-    it "treats invalid max_suggestions as the default of 6" do
-      create_list(:tag, 8, :category)
+    it "returns empty lists when the tag list is full and SDGs are disabled" do
+      Setting["feature.sdg"] = false
 
-      result = ClassificationSuggestions::Llm::Client.call(
-        title: title,
-        description: description,
-        max_suggestions: 0
+      result = suggest(selected_tags: %w[a b c d e f])
+
+      expect(result.as_json).to eq(categories: [], tags: [], sdgs: [], errors: [])
+      expect(RubyLLM::Context).not_to have_received(:new)
+    end
+
+    it "returns an error when classification suggestions are disabled" do
+      Setting["llm.use_ai_classification_suggestions"] = false
+
+      result = suggest
+
+      expect(result.as_json).to eq(
+        categories: [], tags: [], sdgs: [],
+        errors: ["LLM is not properly configured. Please contact an administrator."]
       )
-
-      expect(result.categories.size).to be <= 6
+      expect(RubyLLM::Context).not_to have_received(:new)
     end
 
-    context "when use_ai_classification_suggestions is disabled" do
-      before { Setting["llm.use_ai_classification_suggestions"] = false }
+    it "returns an error when the LLM is not configured" do
+      Setting["llm.provider"] = nil
+      Setting["llm.model"] = nil
 
-      it "returns an error and empty lists" do
-        result = ClassificationSuggestions::Llm::Client.call(title: title, description: description)
+      result = suggest
 
-        expect(result.errors).to include(
-          "LLM is not properly configured. Please contact an administrator."
-        )
-        expect(result.categories).to eq([])
-        expect(result.tags).to eq([])
-        expect(result.sdgs).to eq([])
-      end
+      expect(result.as_json).to eq(
+        categories: [], tags: [], sdgs: [],
+        errors: ["LLM is not properly configured. Please contact an administrator."]
+      )
+      expect(RubyLLM::Context).not_to have_received(:new)
+    end
+  end
+
+  describe "errors" do
+    it "returns a generic error when the LLM raises" do
+      allow(chat).to receive(:ask).and_raise(RubyLLM::Error, "boom")
+
+      result = suggest
+
+      expect(result.as_json).to eq(
+        categories: [], tags: [], sdgs: [],
+        errors: ["Something went wrong generating suggestions. Please try again."]
+      )
     end
 
-    context "when LLM is not configured" do
-      before do
-        Setting["llm.provider"] = nil
-        Setting["llm.model"] = nil
-      end
+    it "returns a generic error when the reply is not JSON" do
+      stub_llm_reply("not json")
 
-      it "returns an error and empty lists" do
-        result = ClassificationSuggestions::Llm::Client.call(title: title, description: description)
+      result = suggest
 
-        expect(result.errors).to be_present
-        expect(result.categories).to eq([])
-      end
+      expect(result.as_json).to eq(
+        categories: [], tags: [], sdgs: [],
+        errors: ["Something went wrong generating suggestions. Please try again."]
+      )
     end
   end
 end

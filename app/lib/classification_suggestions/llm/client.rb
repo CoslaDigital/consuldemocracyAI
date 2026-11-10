@@ -1,35 +1,49 @@
 module ClassificationSuggestions
   module Llm
     class Client
-      DEFAULT_MAX_SUGGESTIONS = 6
-      MAX_SUGGESTIONS_LIMIT = 6
-      FAKE_LATENCY_SECONDS = 2
+      REQUEST_TIMEOUT_SECONDS = 45
+      TAG_LIST_LIMIT = ResponseNormalizer::TAG_LIST_LIMIT
+      MAX_SDGS = ResponseNormalizer::MAX_SDGS
 
-      def self.call(title: nil, description: nil, summary: nil, max_suggestions: DEFAULT_MAX_SUGGESTIONS)
-        new(
-          title: title,
-          description: description,
-          summary: summary,
-          max_suggestions: max_suggestions
-        ).call
+      def self.call(...)
+        new(...).call
       end
 
-      def initialize(title: nil, description: nil, summary: nil, max_suggestions: DEFAULT_MAX_SUGGESTIONS)
+      def initialize(title: nil, description: nil, summary: nil,
+                     selected_tags: [], selected_sdgs: [],
+                     locale: I18n.locale, resource_type: "Proposal")
         @title = title
         @description = description
         @summary = summary
-        @max_suggestions = clamp_max_suggestions(max_suggestions)
+        @selected_tags = Array(selected_tags).map { |tag| tag.to_s.strip }.compact_blank
+        @selected_sdgs = Array(selected_sdgs).map { |code| code.to_s.strip }.compact_blank
+        @locale = locale
+        @resource_type = resource_type
       end
 
       def call
         validate_llm_settings!
         return response if response.errors.any?
+        return response if remaining_tag_slots.zero? && !sdg_enabled?
 
-        simulate_latency
-        response.categories = sample_categories
-        response.tags = []
-        response.sdgs = sample_sdgs
-        response
+        suggestions = generate_suggestions
+        return response if response.errors.any?
+
+        normalized = ResponseNormalizer.new(
+          suggestions,
+          selected_tags: @selected_tags,
+          selected_sdgs: @selected_sdgs,
+          sdg_enabled: sdg_enabled?
+        ).call
+
+        response.categories = normalized[:categories]
+        response.tags = normalized[:tags]
+        response.sdgs = normalized[:sdgs]
+      rescue StandardError => e
+        Rails.logger.error("[ClassificationSuggestions] #{e.class}: #{e.message}")
+        response.errors << I18n.t("classification_suggestions.errors.messages.generic")
+      ensure
+        return response
       end
 
       def response
@@ -59,29 +73,93 @@ module ClassificationSuggestions
 
       private
 
-        def clamp_max_suggestions(value)
-          n = value.to_i
-          n = DEFAULT_MAX_SUGGESTIONS if n < 1
-          [n, MAX_SUGGESTIONS_LIMIT].min
-        end
-
         def validate_llm_settings!
           unless ::Llm::Config.configured? && Setting["llm.use_ai_classification_suggestions"].present?
             response.errors << I18n.t("classification_suggestions.errors.messages.llm_not_configured")
           end
         end
 
-        def simulate_latency
-          sleep(FAKE_LATENCY_SECONDS)
+        def generate_suggestions
+          if draft_blank?
+            response.errors << I18n.t("classification_suggestions.errors.messages.blank_draft")
+            return
+          end
+
+          chat.with_instructions(prompt_builder.system_instructions)
+
+          if structured_output_supported?
+            chat.with_schema(schema_class).ask(prompt_builder.user_message).content
+          else
+            reply = chat.ask(prompt_builder.user_message).content
+            JSON.parse(extract_json_object(reply))
+          end
         end
 
-        def sample_categories
-          Tag.category.pluck(:name).sample(@max_suggestions)
+        def prompt_builder
+          @prompt_builder ||= PromptBuilder.new(
+            title: @title,
+            summary: @summary,
+            description: @description,
+            locale: @locale,
+            max_tags: remaining_tag_slots,
+            max_sdgs: remaining_sdg_slots,
+            sdg_enabled: sdg_enabled?
+          )
         end
 
-        def sample_sdgs
-          codes = SDG::Goal.pluck(:code).map(&:to_s) + SDG::Target.pluck(:code).map(&:to_s)
-          codes.uniq.sample(@max_suggestions)
+        def chat
+          @chat ||= RubyLLM::Context.new(config_with_timeout).chat(
+            provider: Setting["llm.provider"]&.downcase&.to_sym,
+            model: Setting["llm.model"]
+          )
+        end
+
+        def config_with_timeout
+          ::Llm::Config.context.config.dup.tap do |config|
+            config.request_timeout = REQUEST_TIMEOUT_SECONDS
+          end
+        end
+
+        def structured_output_supported?
+          model = RubyLLM.models.find(Setting["llm.model"])
+          model&.supports?(:structured_output)
+        rescue StandardError
+          false
+        end
+
+        def schema_class
+          if sdg_enabled?
+            ClassificationSuggestions::Schemas::WithSdgs
+          else
+            ClassificationSuggestions::Schemas::WithoutSdgs
+          end
+        end
+
+        def extract_json_object(content)
+          raise JSON::ParserError, "blank content" if content.blank?
+
+          match = content.match(/\{.*\}/m)
+          raise JSON::ParserError, "no JSON object found" unless match
+
+          match[0]
+        end
+
+        def draft_blank?
+          @title.blank? && @summary.blank? && @description.blank?
+        end
+
+        def remaining_tag_slots
+          [TAG_LIST_LIMIT - @selected_tags.size, 0].max
+        end
+
+        def remaining_sdg_slots
+          [MAX_SDGS - @selected_sdgs.size, 0].max
+        end
+
+        def sdg_enabled?
+          return @sdg_enabled if defined?(@sdg_enabled)
+
+          @sdg_enabled = SDG::ProcessEnabled.new(@resource_type).enabled?
         end
     end
   end
