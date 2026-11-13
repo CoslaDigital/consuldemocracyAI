@@ -21,7 +21,20 @@
                              "remove-tag-text": t("sdg.related_list_selector.remove_tag") } %>
   </div>
 
-  <div class="help-section callout primary hide">
+  <% if show_classification_suggestions? %>
+    <div class="js-classification-suggestions-sdgs help-section callout primary hide"
+         role="region"
+         aria-label="<%= t("classification_suggestions.sdgs_region") %>"
+         data-title="<%= t("classification_suggestions.sdgs_title") %>"
+         data-accept-all="<%= t("classification_suggestions.accept_all") %>"
+         data-loading="<%= t("classification_suggestions.loading") %>"
+         data-empty="<%= t("classification_suggestions.empty") %>"
+         data-error="<%= t("classification_suggestions.error") %>">
+      <div class="js-classification-suggestions-body"></div>
+    </div>
+  <% end %>
+
+  <div class="help-section callout primary hide js-sdg-selected-help">
     <h3><%= t("sdg.related_list_selector.help.title", record: relatable_name) %></h3>
     <ul class="selected-info"></ul>
   </div>
