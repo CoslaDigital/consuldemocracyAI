@@ -4,6 +4,46 @@
 
 .taggable-fields {
 
+  .taggable-fields-heading-with-suggest {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc($line-height / 3);
+    margin-bottom: calc($line-height / 4);
+
+    label {
+      margin-bottom: 0;
+      font-weight: bold;
+    }
+
+    .js-suggest-classification {
+      margin-bottom: 0;
+    }
+  }
+
+  .js-suggest-classification.is-loading {
+    @include has-fa-icon(spinner, solid);
+
+    &::before {
+      animation: fa-spin 2s infinite linear;
+    }
+  }
+
+  .js-classification-suggestions-tags {
+    margin-top: calc($line-height / 2);
+
+    .classification-suggestion-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: calc($line-height / 4);
+      margin-bottom: calc($line-height / 3);
+    }
+
+    .classification-suggestion-button {
+      margin: 0;
+    }
+  }
+
   input.js-tag-category {
     @include element-invisible;
 

@@ -1,0 +1,15 @@
+en:
+  classification_suggestions:
+    suggest_tags: Suggest tags
+    tags_title: Suggested categories and tags that align with the proposal
+    sdgs_title: Suggested SDGs and targets that align with the proposal
+    accept_all: Accept all
+    loading: Loading…
+    empty: No suggestions found.
+    error: Something went wrong. Please try again.
+    tags_region: Suggested categories and tags
+    sdgs_region: Suggested SDGs and targets
+    errors:
+      messages:
+        llm_not_configured: LLM is not properly configured. Please contact an administrator.
+        rate_limit_exceeded: Please wait a few minutes before generating new suggestions.
