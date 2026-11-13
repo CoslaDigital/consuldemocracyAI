@@ -2,31 +2,40 @@
   "use strict";
 
   App.ClassificationSuggestions = {
+    panelSelector: ".classification-suggestions-tags, .classification-suggestions-sdgs",
     initialize: function() {
-      $("body").on("click", ".js-suggest-classification", function() {
+      $("body").on("click", ".suggest-classification", function() {
         App.ClassificationSuggestions.requestSuggestions($(this));
       });
 
-      $("body").on("click", ".js-classification-suggestion", function() {
+      $("body").on("click", ".classification-suggestion", function() {
         App.ClassificationSuggestions.applySuggestion($(this));
       });
 
-      $("body").on("click", ".js-classification-accept-all", function() {
-        var $panel = $(this).closest(
-          ".js-classification-suggestions-tags, .js-classification-suggestions-sdgs"
-        );
+      $("body").on("click", ".classification-accept-all", function() {
+        var $panel = $(this).closest(App.ClassificationSuggestions.panelSelector);
 
-        $panel.find(".js-classification-suggestion").each(function() {
+        $panel.find(".classification-suggestion").each(function() {
           App.ClassificationSuggestions.applySuggestion($(this));
         });
+      });
+
+      $("body").on("click", ".classification-dismiss", function() {
+        var $panel = $(this).closest(App.ClassificationSuggestions.panelSelector);
+
+        App.ClassificationSuggestions.dismissPanel($panel);
       });
     },
     requestSuggestions: function($button) {
       var $form = $button.closest("form");
       var resourceType = $button.data("resource-type");
-      var $tagsPanel = $form.find(".js-classification-suggestions-tags");
-      var $sdgsPanel = $form.find(".js-classification-suggestions-sdgs");
+      var $tagsPanel = $form.find(".classification-suggestions-tags");
+      var $sdgsPanel = $form.find(".classification-suggestions-sdgs");
       var params;
+
+      if (App.ClassificationSuggestions.restorePanelsIfCached($tagsPanel, $sdgsPanel)) {
+        return;
+      }
 
       $button.prop("disabled", true);
       $button.addClass("is-loading");
@@ -71,7 +80,7 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text($panel.data("loading"));
+      App.ClassificationSuggestions.resetPanelBody($panel, $panel.data("loading"));
     },
     showError: function($panel, message) {
       if (!$panel.length) {
@@ -79,7 +88,8 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text(
+      App.ClassificationSuggestions.resetPanelBody(
+        $panel,
         message || $panel.data("error")
       );
     },
@@ -89,11 +99,26 @@
       }
 
       $panel.removeClass("hide");
-      $panel.find(".js-classification-suggestions-body").text($panel.data("empty"));
+      App.ClassificationSuggestions.resetPanelBody($panel, $panel.data("empty"));
+    },
+    resetPanelBody: function($panel, message) {
+      var $body = $panel.find(".classification-suggestions-body");
+
+      $panel.removeAttr("aria-labelledby");
+      $body.empty();
+      $body.append(App.ClassificationSuggestions.closeButton($panel));
+      $body.append($("<p>").text(message));
+    },
+    titleId: function($panel) {
+      if ($panel.hasClass("classification-suggestions-tags")) {
+        return "classification-suggestions-tags-title";
+      }
+
+      return "classification-suggestions-sdgs-title";
     },
     renderResponse: function($form, data) {
-      var $tagsPanel = $form.find(".js-classification-suggestions-tags");
-      var $sdgsPanel = $form.find(".js-classification-suggestions-sdgs");
+      var $tagsPanel = $form.find(".classification-suggestions-tags");
+      var $sdgsPanel = $form.find(".classification-suggestions-sdgs");
       var errors = data.errors || [];
       var categories = data.categories || [];
       var tags = data.tags || [];
@@ -111,7 +136,6 @@
       App.ClassificationSuggestions.renderSdgsPanel($form, $sdgsPanel, sdgs);
     },
     renderTagsPanel: function($panel, categories, tags) {
-      var $body;
       var items = [];
 
       if (!$panel.length) {
@@ -125,20 +149,9 @@
         items.push({ type: "tag", value: name, label: name });
       });
 
-      if (!items.length) {
-        App.ClassificationSuggestions.showEmpty($panel);
-        return;
-      }
-
-      $body = $panel.find(".js-classification-suggestions-body");
-      $panel.removeClass("hide");
-      $body.empty();
-      $body.append($("<h3>").text($panel.data("title")));
-      $body.append(App.ClassificationSuggestions.suggestionButtons(items));
-      $body.append(App.ClassificationSuggestions.acceptAllButton($panel.data("accept-all")));
+      App.ClassificationSuggestions.fillSuggestionPanel($panel, items);
     },
     renderSdgsPanel: function($form, $panel, sdgs) {
-      var $body;
       var items = [];
       var suggestions = App.ClassificationSuggestions.sdgSuggestions($form);
 
@@ -147,46 +160,116 @@
       }
 
       sdgs.forEach(function(code) {
+        var parts = App.ClassificationSuggestions.sdgLabelParts(suggestions, code);
+
         items.push({
           type: "sdg",
           value: String(code),
-          label: App.ClassificationSuggestions.sdgLabel(suggestions, code)
+          label: parts.label,
+          code: parts.code,
+          title: parts.title
         });
       });
+
+      App.ClassificationSuggestions.fillSuggestionPanel($panel, items);
+    },
+    fillSuggestionPanel: function($panel, items) {
+      var $body;
+      var titleId;
+      var $title;
 
       if (!items.length) {
         App.ClassificationSuggestions.showEmpty($panel);
         return;
       }
 
-      $body = $panel.find(".js-classification-suggestions-body");
+      titleId = App.ClassificationSuggestions.titleId($panel);
+      $title = $("<h4>").attr("id", titleId).text($panel.data("title"));
+      $body = $panel.find(".classification-suggestions-body");
       $panel.removeClass("hide");
+      $panel.attr("aria-labelledby", titleId);
       $body.empty();
-      $body.append($("<h3>").text($panel.data("title")));
-      $body.append(App.ClassificationSuggestions.suggestionButtons(items));
-      $body.append(App.ClassificationSuggestions.acceptAllButton($panel.data("accept-all")));
+      $body.append(App.ClassificationSuggestions.closeButton($panel));
+      $body.append($title);
+      $body.append(App.ClassificationSuggestions.suggestionButtons($panel, items));
+      $body.append(App.ClassificationSuggestions.panelActions($panel));
     },
-    suggestionButtons: function(items) {
+    suggestionButtons: function($panel, items) {
       var $list = $("<div>").addClass("classification-suggestion-list");
+      var template = $panel.find(".classification-suggestion-template").get(0);
 
       items.forEach(function(item) {
-        var $button = $("<button>")
-          .attr("type", "button")
-          .addClass("button hollow classification-suggestion-button js-classification-suggestion")
-          .attr("data-suggestion-type", item.type)
-          .attr("data-value", item.value)
-          .text(item.label + " »");
+        var $button = $(document.importNode(template.content, true).children);
+        var $label = $button.find(".classification-suggestion-label");
+
+        $button.attr("data-suggestion-type", item.type);
+        $button.attr("data-value", item.value);
+        $button.attr("title", item.label);
+        $button.attr("aria-label", item.label);
+
+        if (item.type === "sdg" && item.code && item.title) {
+          $label.empty();
+          $label.append(
+            $("<strong>").addClass("classification-suggestion-code").text(item.code)
+          );
+          $label.append(document.createTextNode(" "));
+          $label.append(
+            $("<span>").addClass("classification-suggestion-text").text(item.title)
+          );
+        } else {
+          $label.text(item.label);
+        }
 
         $list.append($button);
       });
 
       return $list;
     },
-    acceptAllButton: function(label) {
+    panelActions: function($panel) {
+      return $("<div>")
+        .addClass("classification-suggestion-actions")
+        .append(
+          $("<button>")
+            .attr("type", "button")
+            .addClass("button classification-accept-all")
+            .text($panel.data("accept-all"))
+        );
+    },
+    closeButton: function($panel) {
       return $("<button>")
         .attr("type", "button")
-        .addClass("button js-classification-accept-all")
-        .text(label);
+        .attr("aria-label", $panel.data("close"))
+        .addClass("close-button classification-dismiss")
+        .html("&times;");
+    },
+    dismissPanel: function($panel) {
+      if (!$panel.length) {
+        return;
+      }
+
+      $panel.addClass("hide");
+    },
+    panelHasSuggestions: function($panel) {
+      return $panel.length > 0 &&
+        $panel.find(".classification-suggestion").length > 0;
+    },
+    restorePanelsIfCached: function($tagsPanel, $sdgsPanel) {
+      var tagsCached = App.ClassificationSuggestions.panelHasSuggestions($tagsPanel);
+      var sdgsCached = App.ClassificationSuggestions.panelHasSuggestions($sdgsPanel);
+
+      if (!tagsCached && !sdgsCached) {
+        return false;
+      }
+
+      if (tagsCached) {
+        $tagsPanel.removeClass("hide");
+      }
+
+      if (sdgsCached) {
+        $sdgsPanel.removeClass("hide");
+      }
+
+      return true;
     },
     sdgSuggestions: function($form) {
       var raw = $form.find(".sdg-related-list-selector .input").data("suggestions-list");
@@ -205,7 +288,7 @@
 
       return raw;
     },
-    sdgLabel: function(suggestions, code) {
+    sdgLabelParts: function(suggestions, code) {
       var match;
       var codeString = String(code);
 
@@ -214,22 +297,24 @@
       });
 
       if (match && match.title) {
-        return codeString + " " + match.title;
+        return {
+          code: codeString,
+          title: match.title,
+          label: codeString + " " + match.title
+        };
       }
 
       if (match && match.display_text) {
-        return match.display_text;
+        return { code: null, title: null, label: match.display_text };
       }
 
-      return codeString;
+      return { code: null, title: null, label: codeString };
     },
     applySuggestion: function($button) {
       var type = $button.data("suggestion-type");
       var value = String($button.data("value"));
       var $form = $button.closest("form");
-      var $panel = $button.closest(
-        ".js-classification-suggestions-tags, .js-classification-suggestions-sdgs"
-      );
+      var $panel = $button.closest(App.ClassificationSuggestions.panelSelector);
 
       if (type === "category") {
         App.ClassificationSuggestions.applyCategory($form, value);
@@ -257,19 +342,17 @@
       App.ClassificationSuggestions.applyTag($form, value);
     },
     applyTag: function($form, value) {
-      var input = $form.find("input.js-tag-list")[0];
-      var control = input && input.tomselect;
-
-      if (!control) {
-        return;
-      }
-
-      if (control.items.indexOf(value) === -1) {
-        control.createItem(value);
-      }
+      App.ClassificationSuggestions.addListValue($form, "input.js-tag-list", value);
     },
     applySdg: function($form, value) {
-      var input = $form.find(".sdg-related-list-selector .input")[0];
+      App.ClassificationSuggestions.addListValue(
+        $form,
+        ".sdg-related-list-selector .input",
+        value
+      );
+    },
+    addListValue: function($form, selector, value) {
+      var input = $form.find(selector)[0];
       var control = input && input.tomselect;
 
       if (!control) {
@@ -285,9 +368,8 @@
         return;
       }
 
-      if ($panel.find(".js-classification-suggestion").length === 0) {
-        $panel.addClass("hide");
-        $panel.find(".js-classification-suggestions-body").empty();
+      if ($panel.find(".classification-suggestion").length === 0) {
+        App.ClassificationSuggestions.dismissPanel($panel);
       }
     }
   };
