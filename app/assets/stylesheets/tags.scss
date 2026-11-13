@@ -11,9 +11,12 @@
     gap: calc($line-height / 3);
     margin-bottom: calc($line-height / 4);
 
+    h4 { margin-bottom: 0; }
+
     label {
-      margin-bottom: 0;
+      font-size: inherit;
       font-weight: bold;
+      margin-bottom: 0;
     }
 
     .js-suggest-classification {
@@ -31,16 +34,36 @@
 
   .js-classification-suggestions-tags {
     margin-top: calc($line-height / 2);
+    position: relative;
+
+    .js-classification-dismiss {
+      color: $color-info;
+      position: absolute;
+      right: calc($line-height / 2);
+      top: calc($line-height / 2);
+    }
+
+    h3 {
+      padding-right: $line-height;
+    }
 
     .classification-suggestion-list {
       display: flex;
       flex-wrap: wrap;
       gap: calc($line-height / 4);
-      margin-bottom: calc($line-height / 3);
+      margin-bottom: calc($line-height / 2);
     }
 
     .classification-suggestion-button {
+      @include hollow-button;
+      font-size: 0.75rem;
       margin: 0;
+    }
+
+    .classification-suggestion-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: calc($line-height / 3);
     }
   }
 
