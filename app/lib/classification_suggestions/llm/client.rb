@@ -88,7 +88,7 @@ module ClassificationSuggestions
           chat.with_instructions(prompt_builder.system_instructions)
 
           if structured_output_supported?
-            chat.with_schema(schema_class).ask(prompt_builder.user_message).content
+            chat.with_schema(schema_payload).ask(prompt_builder.user_message).content
           else
             reply = chat.ask(prompt_builder.user_message).content
             JSON.parse(extract_json_object(reply))
@@ -133,6 +133,13 @@ module ClassificationSuggestions
           else
             ClassificationSuggestions::Schemas::WithoutSdgs
           end
+        end
+
+        # Claude (via OpenRouter/Anthropic) rejects `strict` inside the JSON
+        # Schema object. ruby_llm-schema 0.2.x embeds it by default; newer
+        # gem versions can omit it. Strip until we upgrade.
+        def schema_payload
+          schema_class.new.to_json_schema.fetch(:schema).except(:strict, "strict")
         end
 
         def extract_json_object(content)

@@ -61,7 +61,15 @@ describe ClassificationSuggestions::Llm::Client do
       result = suggest
 
       expect(result.categories).to eq(["Culture"])
-      expect(chat).to have_received(:with_schema).with(ClassificationSuggestions::Schemas::WithSdgs)
+      expect(chat).to have_received(:with_schema) do |schema|
+        properties = schema[:properties] || schema["properties"]
+
+        expect(schema).to be_a(Hash)
+        expect(schema).not_to have_key(:strict)
+        expect(schema).not_to have_key("strict")
+        expect(schema[:type] || schema["type"]).to eq("object")
+        expect(properties.keys.map(&:to_s)).to include("sdgs")
+      end
     end
 
     it "uses the schema without SDGs when the SDG process is disabled" do
@@ -72,7 +80,14 @@ describe ClassificationSuggestions::Llm::Client do
       result = suggest
 
       expect(result.sdgs).to eq([])
-      expect(chat).to have_received(:with_schema).with(ClassificationSuggestions::Schemas::WithoutSdgs)
+      expect(chat).to have_received(:with_schema) do |schema|
+        properties = schema[:properties] || schema["properties"]
+
+        expect(schema).to be_a(Hash)
+        expect(schema).not_to have_key(:strict)
+        expect(schema).not_to have_key("strict")
+        expect(properties.keys.map(&:to_s)).not_to include("sdgs")
+      end
     end
 
     it "does not suggest tags or SDGs that are already selected" do
