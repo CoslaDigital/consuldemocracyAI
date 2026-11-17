@@ -5,7 +5,7 @@ module ClassificationSuggestions
     DESCRIPTION_MAX_LENGTH = 6000
 
     def initialize(title:, summary:, description:, locale:, max_tags:,
-                   max_sdgs:, sdg_enabled:)
+                   max_sdgs:, sdg_enabled:, selected_tags: [], selected_sdgs: [])
       @title = title.to_s
       @summary = summary.to_s
       @description = description.to_s
@@ -13,6 +13,8 @@ module ClassificationSuggestions
       @max_tags = max_tags
       @max_sdgs = max_sdgs
       @sdg_enabled = sdg_enabled
+      @selected_tags = Array(selected_tags)
+      @selected_sdgs = Array(selected_sdgs)
     end
 
     def system_instructions
@@ -25,7 +27,10 @@ module ClassificationSuggestions
       prompts.fetch("classification_suggestion_user") % {
         title: truncate(@title, TITLE_MAX_LENGTH),
         summary: truncate(@summary, SUMMARY_MAX_LENGTH),
-        description: truncate(@description, DESCRIPTION_MAX_LENGTH)
+        description: truncate(@description, DESCRIPTION_MAX_LENGTH),
+        selected_categories: selected_category_lines,
+        selected_tags: selected_free_form_tag_lines,
+        selected_sdgs: @selected_sdgs.join("\n")
       }
     end
 
@@ -59,6 +64,36 @@ module ClassificationSuggestions
           end
         end
         lines.join("\n")
+      end
+
+      def selected_category_lines
+        split_selected_tags.fetch(:categories).join("\n")
+      end
+
+      def selected_free_form_tag_lines
+        split_selected_tags.fetch(:tags).join("\n")
+      end
+
+      def split_selected_tags
+        return @split_selected_tags if defined?(@split_selected_tags)
+
+        categories = []
+        tags = []
+
+        @selected_tags.each do |name|
+          canonical = category_names_by_key[name.to_s.strip.downcase]
+          if canonical
+            categories << canonical
+          else
+            tags << name.to_s
+          end
+        end
+
+        @split_selected_tags = { categories: categories, tags: tags }
+      end
+
+      def category_names_by_key
+        @category_names_by_key ||= Tag.category.pluck(:name).index_by(&:downcase)
       end
 
       def truncate(value, length)

@@ -30,9 +30,14 @@ classification_suggestion_prompt: |
        If none fit well, return an empty categories list rather than guessing.
     3. Then suggest free-form tags for remaining topical detail.
     4. Prefer short, reusable tags (1-3 words). Do not invent tags that merely
-       restate a category name. Avoid duplicates and near-duplicates.
-    5. Do not suggest more than max_tags free-form tags.
-    6. Categories and tags share one form field with a hard limit of 6 items
+       restate a category name. Avoid duplicates and near-duplicates among
+       suggestions. Treat tag and category comparison as case-insensitive.
+    5. Do not re-suggest anything in selected_categories or selected_tags
+       (exact matches or case variants). Avoid near-duplicates or very similar
+       wording to those selections (for example, "street trees" when "trees"
+       is already selected). Prefer complementary coverage the selection lacks.
+    6. Do not suggest more than max_tags free-form tags.
+    7. Categories and tags share one form field with a hard limit of 6 items
        in total. Respect max_tags. Never invent categories outside the list.
 
     Write any textual reasons in the language indicated by locale.
@@ -51,6 +56,8 @@ classification_suggestion_sdg_system_appendix: |
     Also suggest Sustainable Development Goals that align with the draft.
     Only suggest SDGs from available_sdgs.
     Do not suggest more than max_sdgs SDGs.
+    Do not re-suggest codes in selected_sdgs.
+    Prefer complementary goals or targets the selection lacks.
     Each SDG must include a short reason in the language indicated by locale.
     Prefer goal-level codes from available_sdgs.
   </sdg_instructions>
@@ -67,3 +74,12 @@ classification_suggestion_user: |
     <summary>%{summary}</summary>
     <description>%{description}</description>
   </draft>
+  <selected_categories>
+  %{selected_categories}
+  </selected_categories>
+  <selected_tags>
+  %{selected_tags}
+  </selected_tags>
+  <selected_sdgs>
+  %{selected_sdgs}
+  </selected_sdgs>

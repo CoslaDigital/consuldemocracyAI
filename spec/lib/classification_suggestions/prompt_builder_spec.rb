@@ -72,5 +72,45 @@ describe ClassificationSuggestions::PromptBuilder do
       expect(message).to include("<summary></summary>")
       expect(message).to include("<description></description>")
     end
+
+    it "splits selected tags into categories and free-form tags and includes SDGs" do
+      create(:tag, :category, name: "Culture")
+
+      message = build(
+        selected_tags: ["Culture", "bike lanes", "trees"],
+        selected_sdgs: ["11", "13.1"]
+      ).user_message
+
+      expect(message).to match(
+        %r{<selected_categories>\s*Culture\s*</selected_categories>}m
+      )
+      expect(message).to match(
+        %r{<selected_tags>\s*bike lanes\ntrees\s*</selected_tags>}m
+      )
+      expect(message).to match(
+        %r{<selected_sdgs>\s*11\n13\.1\s*</selected_sdgs>}m
+      )
+    end
+
+    it "renders empty selected blocks when nothing is selected" do
+      message = build.user_message
+
+      expect(message).to include("<selected_categories>\n\n</selected_categories>")
+      expect(message).to include("<selected_tags>\n\n</selected_tags>")
+      expect(message).to include("<selected_sdgs>\n\n</selected_sdgs>")
+    end
+
+    it "matches categories case-insensitively and uses the canonical name" do
+      create(:tag, :category, name: "Culture")
+
+      message = build(selected_tags: ["culture", "parks"]).user_message
+
+      expect(message).to match(
+        %r{<selected_categories>\s*Culture\s*</selected_categories>}m
+      )
+      expect(message).to match(
+        %r{<selected_tags>\s*parks\s*</selected_tags>}m
+      )
+    end
   end
 end

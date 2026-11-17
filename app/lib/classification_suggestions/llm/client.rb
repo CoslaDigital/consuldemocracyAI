@@ -101,9 +101,11 @@ module ClassificationSuggestions
             summary: @summary,
             description: @description,
             locale: @locale,
+            sdg_enabled: sdg_enabled?,
             max_tags: remaining_tag_slots,
             max_sdgs: remaining_sdg_slots,
-            sdg_enabled: sdg_enabled?
+            selected_tags: @selected_tags,
+            selected_sdgs: @selected_sdgs
           )
         end
 
