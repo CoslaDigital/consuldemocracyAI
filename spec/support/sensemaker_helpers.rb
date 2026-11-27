@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+module SensemakerTestHelpers
+  REPORT_UI_CONFIG_SCHEMA_FIXTURE = Rails.root.join(
+    "spec/fixtures/files/sensemaker/report_ui/schemas/config.v1.json"
+  )
+
+  def self.seed_report_ui_config_schema!
+    destination = Sensemaker::Paths.report_ui_config_schema
+    FileUtils.mkdir_p(destination.dirname)
+    FileUtils.cp(REPORT_UI_CONFIG_SCHEMA_FIXTURE, destination)
+  end
+end
+
 RSpec.shared_context "sensemaker llm config" do
   let(:llm_config) do
     double(
@@ -18,4 +30,8 @@ RSpec.shared_context "sensemaker llm config" do
     )
   end
   let(:llm_context) { double("LLM context", config: llm_config) }
+end
+
+RSpec.shared_context "sensemaker report ui config schema" do
+  before { SensemakerTestHelpers.seed_report_ui_config_schema! }
 end

@@ -28,6 +28,20 @@ describe Sensemaker::Job do
     end
   end
 
+  describe "run_options" do
+    it "defaults to an empty hash" do
+      expect(job.run_options).to eq({})
+    end
+
+    it "persists a JSON object" do
+      job.update!(run_options: { "config" => { "title" => "Custom Jury Report" }})
+
+      expect(job.reload.run_options).to eq(
+        "config" => { "title" => "Custom Jury Report" }
+      )
+    end
+  end
+
   shared_context "sensemaker paths stubbed" do
     let(:data_folder) { "/tmp/sensemaker_test_folder/data" }
     let(:job_dir) { "#{data_folder}/job-#{job.id}" }

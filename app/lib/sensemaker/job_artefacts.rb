@@ -79,11 +79,14 @@ module Sensemaker
       input_artefact_paths.select { |path| File.exist?(path) }
     end
 
-    def metadata_path
-      path = input_path
-      return nil if path.blank?
+    def report_config_path
+      File.join(job_directory, "config.json")
+    end
 
-      "#{path}-metadata.json"
+    def write_report_config(config)
+      ensure_directory!
+      File.write(report_config_path, JSON.pretty_generate(config))
+      report_config_path
     end
 
     def complete?

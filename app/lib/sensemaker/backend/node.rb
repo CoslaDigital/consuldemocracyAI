@@ -105,7 +105,6 @@ module Sensemaker
           return Sensemaker::CsvExporter.provide_defaults_for_zero_vote_comments(artefacts.input_path)
         end
 
-        write_report_metadata if report?
         nil
       end
 
@@ -136,19 +135,25 @@ module Sensemaker
         end
 
         def report_ui_cli_flags
-          conversation = job.conversation
-          target_label = conversation.target_label(format: :full)
           base = artefacts.input_path
 
           {
             "topics" => "#{base}-topic-stats.json",
             "summary" => "#{base}-summary.json",
             "comments" => "#{base}-comments-with-scores.json",
-            "metadata" => artefacts.metadata_path.to_s,
-            "reportTitle" => "Report for #{target_label}",
+            "config" => write_report_config,
             "outputDir" => artefacts.job_directory.to_s,
             "outputFile" => output_file_name
           }
+        end
+
+        def write_report_config
+          config = job.run_options.to_h["config"]
+          config = config.is_a?(Hash) ? config.deep_dup.stringify_keys : {}
+          config.reject! { |_, value| value.blank? }
+          config["title"] ||= job.conversation.target_label(format: :full)
+
+          artefacts.write_report_config(config)
         end
 
         def llm_cli_flags
@@ -179,15 +184,6 @@ module Sensemaker
                         value.to_s
                       end
           "--#{key} #{formatted}"
-        end
-
-        def write_report_metadata
-          artefacts.ensure_directory!
-          metadata_path = artefacts.metadata_path
-          return if File.exist?(metadata_path)
-
-          title = job.conversation.target_label(format: :full)
-          File.write(metadata_path, { title: title }.to_json)
         end
 
         def file_exists?(file_path, description: "File or directory")
