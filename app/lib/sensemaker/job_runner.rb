@@ -125,36 +125,9 @@ module Sensemaker
           return false
         end
 
-        adapter = runtime_config.adapter
-
-        if adapter == "vertex" && runtime_config.vertex_project_id.blank?
-          job.record_error!(
-            "Vertex AI is not configured. Set tenant secrets llm.vertexai_project_id " \
-            "(and optionally vertexai_location)."
-          )
-          return false
-        end
-
-        if adapter.blank?
-          job.record_error!(
-            "Sensemaker LLM provider is not supported. Current provider: " \
-            "#{runtime_config.provider.presence || "(not set)"}."
-          )
-          return false
-        end
-
-        if runtime_config.model.blank?
-          job.record_error!(
-            "Sensemaker requires an LLM model to be selected. Set it in Admin → Settings → LLM."
-          )
-          return false
-        end
-
-        if adapter == "openai-compatible" && runtime_config.api_key.blank?
-          job.record_error!(
-            "Sensemaker requires an API key for provider '#{runtime_config.compat_provider}'. " \
-            "Set tenant secret llm.#{runtime_config.compat_provider}_api_key."
-          )
+        llm_error = runtime_config.validation_error
+        if llm_error.present?
+          job.record_error!(llm_error)
           return false
         end
 
